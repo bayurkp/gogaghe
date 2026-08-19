@@ -1,0 +1,78 @@
+// api/proto/gogaghe/v1/gogaghe.proto
+syntax = "proto3";
+
+package gogaghe.v1;
+
+option go_package = "github.com/gogaghe/gogaghe/pkg/gogaghe/v1;gogaghev1";
+
+service GogagheService {
+  rpc Set(SetRequest) returns (SetResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+  rpc VectorSearch(VectorSearchRequest) returns (VectorSearchResponse);
+  rpc HybridSearch(HybridSearchRequest) returns (HybridSearchResponse);
+}
+
+// --- Set ---
+message SetRequest {
+  string key        = 1;
+  bytes  value      = 2;
+  int64  ttl_ms     = 3;  // 0 = no expiry
+  int64  cost_ms    = 4;  // ComputationCostMs for eviction scoring
+  repeated float vector = 5;  // optional pre-computed vector
+  bool   auto_embed = 6;  // trigger async embedding from value
+}
+
+message SetResponse {
+  bool success = 1;
+}
+
+// --- Get ---
+message GetRequest {
+  string key = 1;
+}
+
+message GetResponse {
+  bool   found         = 1;
+  bytes  value         = 2;
+  repeated float vector = 3;
+  int64  access_count  = 4;
+}
+
+// --- Delete ---
+message DeleteRequest {
+  string key = 1;
+}
+
+message DeleteResponse {
+  bool deleted = 1;
+}
+
+// --- VectorSearch ---
+message VectorSearchRequest {
+  repeated float query_vector = 1;
+  int32          top_k        = 2;
+}
+
+message VectorSearchResponse {
+  repeated SearchResult results = 1;
+}
+
+// --- HybridSearch ---
+message HybridSearchRequest {
+  string         query        = 1;  // lexical query text
+  repeated float query_vector = 2;  // semantic query vector
+  int32          top_k        = 3;
+  float          rrf_k        = 4;  // RRF constant, default 60.0
+}
+
+message HybridSearchResponse {
+  repeated SearchResult results = 1;
+}
+
+// --- Shared ---
+message SearchResult {
+  string key   = 1;
+  bytes  value = 2;
+  float  score = 3;
+}
