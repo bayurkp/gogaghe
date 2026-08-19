@@ -23,8 +23,10 @@ type ScoredKey struct {
 type BM25Index struct {
 	invertedIndex map[string]map[string]int // token -> key -> term frequency
 	docLengths    map[string]int            // key -> number of tokens
+	docTokens     map[string][]string       // key -> token list for quick incremental removal
 	avgDocLength  float64
 	docCount      int
+	totalTokens   int
 }
 
 // NewBM25Index creates an empty BM25Index.
@@ -32,6 +34,7 @@ func NewBM25Index() *BM25Index {
 	return &BM25Index{
 		invertedIndex: make(map[string]map[string]int),
 		docLengths:    make(map[string]int),
+		docTokens:     make(map[string][]string),
 	}
 }
 
@@ -39,22 +42,74 @@ func NewBM25Index() *BM25Index {
 func (b *BM25Index) Rebuild(items map[string]Item) {
 	b.invertedIndex = make(map[string]map[string]int)
 	b.docLengths = make(map[string]int)
-	totalTokens := 0
+	b.docTokens = make(map[string][]string)
+	b.totalTokens = 0
+	b.docCount = 0
 
 	for key, item := range items {
-		tokens := tokenize(string(item.Value))
-		b.docLengths[key] = len(tokens)
-		totalTokens += len(tokens)
-		for _, tok := range tokens {
-			if b.invertedIndex[tok] == nil {
-				b.invertedIndex[tok] = make(map[string]int)
+		b.IndexDocument(key, item.Value)
+	}
+}
+
+// IndexDocument incrementally indexes or updates a single document.
+func (b *BM25Index) IndexDocument(key string, value []byte) {
+	// If key already existed, remove previous occurrences first
+	if prevTokens, exists := b.docTokens[key]; exists {
+		b.totalTokens -= len(prevTokens)
+		for _, tok := range prevTokens {
+			if postings, ok := b.invertedIndex[tok]; ok {
+				delete(postings, key)
+				if len(postings) == 0 {
+					delete(b.invertedIndex, tok)
+				}
 			}
-			b.invertedIndex[tok][key]++
+		}
+	} else {
+		b.docCount++
+	}
+
+	tokens := tokenize(string(value))
+	b.docLengths[key] = len(tokens)
+	b.docTokens[key] = tokens
+	b.totalTokens += len(tokens)
+
+	for _, tok := range tokens {
+		if b.invertedIndex[tok] == nil {
+			b.invertedIndex[tok] = make(map[string]int)
+		}
+		b.invertedIndex[tok][key]++
+	}
+
+	if b.docCount > 0 {
+		b.avgDocLength = float64(b.totalTokens) / float64(b.docCount)
+	} else {
+		b.avgDocLength = 0
+	}
+}
+
+// RemoveDocument incrementally removes a document from the index.
+func (b *BM25Index) RemoveDocument(key string) {
+	prevTokens, exists := b.docTokens[key]
+	if !exists {
+		return
+	}
+
+	b.totalTokens -= len(prevTokens)
+	b.docCount--
+	delete(b.docLengths, key)
+	delete(b.docTokens, key)
+
+	for _, tok := range prevTokens {
+		if postings, ok := b.invertedIndex[tok]; ok {
+			delete(postings, key)
+			if len(postings) == 0 {
+				delete(b.invertedIndex, tok)
+			}
 		}
 	}
-	b.docCount = len(items)
+
 	if b.docCount > 0 {
-		b.avgDocLength = float64(totalTokens) / float64(b.docCount)
+		b.avgDocLength = float64(b.totalTokens) / float64(b.docCount)
 	} else {
 		b.avgDocLength = 0
 	}

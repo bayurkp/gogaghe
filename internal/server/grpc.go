@@ -57,8 +57,8 @@ func (s *GogagheServer) Set(ctx context.Context, req *gogaghev1.SetRequest) (*go
 		return nil, status.Errorf(codes.ResourceExhausted, "set failed: %v", err)
 	}
 
-	// Rebuild BM25 index on every write (acceptable for in-memory scale).
-	s.bm25.Rebuild(s.engine.Items())
+	// Incrementally update BM25 index for O(tokens) write complexity
+	s.bm25.IndexDocument(req.Key, req.Value)
 
 	// Async embedding if requested and embedder is configured.
 	if req.AutoEmbed && s.embedder != nil {
@@ -99,7 +99,7 @@ func (s *GogagheServer) Get(ctx context.Context, req *gogaghev1.GetRequest) (*go
 func (s *GogagheServer) Delete(ctx context.Context, req *gogaghev1.DeleteRequest) (*gogaghev1.DeleteResponse, error) {
 	deleted := s.engine.Delete(req.Key)
 	if deleted {
-		s.bm25.Rebuild(s.engine.Items())
+		s.bm25.RemoveDocument(req.Key)
 	}
 	s.metrics.ItemsCount.Set(float64(s.engine.Len()))
 	s.metrics.MemoryUsageBytes.Set(float64(s.engine.MemoryUsageBytes()))

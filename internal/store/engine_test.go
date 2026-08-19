@@ -252,3 +252,33 @@ func TestEviction_NoOpWhenBelowTarget(t *testing.T) {
 		t.Errorf("expected 1 item left, got %d", e.Len())
 	}
 }
+
+func TestBM25Incremental(t *testing.T) {
+	idx := store.NewBM25Index()
+
+	idx.IndexDocument("doc1", []byte("the quick brown fox jumps over the lazy dog"))
+	idx.IndexDocument("doc2", []byte("quick brown fox"))
+	idx.IndexDocument("doc3", []byte("lazy dog sleeps all day"))
+
+	results := idx.Search("quick fox", 3)
+	if len(results) == 0 {
+		t.Fatal("expected results from incremental index")
+	}
+	if results[0].Key != "doc1" && results[0].Key != "doc2" {
+		t.Errorf("unexpected top result: %s", results[0].Key)
+	}
+
+	// Update doc1 with new content
+	idx.IndexDocument("doc1", []byte("completely different content about space exploration"))
+	resAfterUpdate := idx.Search("quick fox", 3)
+	if len(resAfterUpdate) == 0 || resAfterUpdate[0].Key != "doc2" {
+		t.Errorf("expected doc2 to be top result after doc1 updated, got %v", resAfterUpdate)
+	}
+
+	// Remove doc2
+	idx.RemoveDocument("doc2")
+	resAfterRemove := idx.Search("quick fox", 3)
+	if len(resAfterRemove) != 0 {
+		t.Errorf("expected 0 results after removing doc2, got %d", len(resAfterRemove))
+	}
+}
