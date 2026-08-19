@@ -1,0 +1,43 @@
+{
+  "title": "gogaghe - In-Memory Hybrid Store",
+  "uid": "gogaghe-dashboard",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Cache Hit Rate",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "targets": [{
+        "expr": "rate(gogaghe_cache_hits_total[1m]) / (rate(gogaghe_cache_hits_total[1m]) + rate(gogaghe_cache_misses_total[1m]))",
+        "legendFormat": "Hit Rate"
+      }]
+    },
+    {
+      "type": "stat",
+      "title": "Items Count",
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "gogaghe_items_count", "legendFormat": "Items"}]
+    },
+    {
+      "type": "stat",
+      "title": "Memory Usage (bytes)",
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "gogaghe_memory_usage_bytes", "legendFormat": "Bytes"}]
+    },
+    {
+      "type": "stat",
+      "title": "Active Goroutines",
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "gogaghe_goroutines_active", "legendFormat": "Goroutines"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Operation Latency (p99)",
+      "gridPos": {"x": 0, "y": 4, "w": 24, "h": 8},
+      "targets": [{
+        "expr": "histogram_quantile(0.99, rate(gogaghe_operation_duration_seconds_bucket[1m]))",
+        "legendFormat": "{{operation}} p99"
+      }]
+    }
+  ]
+}

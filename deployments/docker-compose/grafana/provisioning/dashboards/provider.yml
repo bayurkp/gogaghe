@@ -1,0 +1,8 @@
+# deployments/docker-compose/grafana/provisioning/dashboards/provider.yml
+apiVersion: 1
+providers:
+  - name: gogaghe
+    folder: gogaghe
+    type: file
+    options:
+      path: /etc/grafana/provisioning/dashboards
