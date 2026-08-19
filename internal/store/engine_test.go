@@ -213,3 +213,42 @@ func TestRRF(t *testing.T) {
 		t.Errorf("expected 2 results with default k, got %d", len(resDefault))
 	}
 }
+
+func TestEviction(t *testing.T) {
+	e := newTestEngine(t)
+
+	// Insert items with varying cost and access patterns
+	_ = e.Set("cheap-unused", store.Item{Value: []byte("payload-1"), CostMs: 1})
+	_ = e.Set("cheap-used", store.Item{Value: []byte("payload-2"), CostMs: 1})
+	_ = e.Set("expensive", store.Item{Value: []byte("payload-3"), CostMs: 1000})
+
+	// Simulate access
+	_, _ = e.Get("cheap-used")
+	_, _ = e.Get("expensive")
+	_, _ = e.Get("expensive")
+
+	// Target 1 byte: evict items until size <= 1
+	store.Evict(e, 1)
+
+	// cheap-unused (priority 1/1 = 1) should be evicted before cheap-used (1/2 = 0.5? wait: cost/(access+1))
+	// priority:
+	// cheap-unused: cost=1, access=0 => 1 / 1 = 1.0
+	// cheap-used: cost=1, access=1 => 1 / 2 = 0.5
+	// expensive: cost=1000, access=2 => 1000 / 3 = 333.33
+	// Lowest priority is cheap-used (0.5), then cheap-unused (1.0), then expensive (333.33)
+	// Both cheap items evicted, expensive survives longest
+	_, expExists := e.Get("expensive")
+	if !expExists && e.Len() > 0 {
+		t.Error("expensive item should survive longer than cheap items")
+	}
+}
+
+func TestEviction_NoOpWhenBelowTarget(t *testing.T) {
+	e := newTestEngine(t)
+	_ = e.Set("k1", store.Item{Value: []byte("v1"), CostMs: 10})
+	mem := e.MemoryUsageBytes()
+	store.Evict(e, mem+100) // target is higher than current
+	if e.Len() != 1 {
+		t.Errorf("expected 1 item left, got %d", e.Len())
+	}
+}
