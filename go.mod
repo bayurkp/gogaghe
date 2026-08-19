@@ -1,4 +1,4 @@
-module github.com/gogaghe/gogaghe
+module github.com/bayurkp/gogaghe
 
 go 1.25.1
 

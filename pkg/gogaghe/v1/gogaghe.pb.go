@@ -675,7 +675,7 @@ const file_gogaghe_v1_gogaghe_proto_rawDesc = "" +
 	"\x03Get\x12\x16.gogaghe.v1.GetRequest\x1a\x17.gogaghe.v1.GetResponse\x12?\n" +
 	"\x06Delete\x12\x19.gogaghe.v1.DeleteRequest\x1a\x1a.gogaghe.v1.DeleteResponse\x12Q\n" +
 	"\fVectorSearch\x12\x1f.gogaghe.v1.VectorSearchRequest\x1a .gogaghe.v1.VectorSearchResponse\x12Q\n" +
-	"\fHybridSearch\x12\x1f.gogaghe.v1.HybridSearchRequest\x1a .gogaghe.v1.HybridSearchResponseB5Z3github.com/gogaghe/gogaghe/pkg/gogaghe/v1;gogaghev1b\x06proto3"
+	"\fHybridSearch\x12\x1f.gogaghe.v1.HybridSearchRequest\x1a .gogaghe.v1.HybridSearchResponseB5Z3github.com/bayurkp/gogaghe/pkg/gogaghe/v1;gogaghev1b\x06proto3"
 
 var (
 	file_gogaghe_v1_gogaghe_proto_rawDescOnce sync.Once

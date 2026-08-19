@@ -3,7 +3,7 @@ syntax = "proto3";
 
 package gogaghe.v1;
 
-option go_package = "github.com/gogaghe/gogaghe/pkg/gogaghe/v1;gogaghev1";
+option go_package = "github.com/bayurkp/gogaghe/pkg/gogaghe/v1;gogaghev1";
 
 service GogagheService {
   rpc Set(SetRequest) returns (SetResponse);
