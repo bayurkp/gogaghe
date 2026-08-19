@@ -3,6 +3,7 @@ package store_test
 
 import (
 	"fmt"
+	"math"
 	"sync"
 	"testing"
 	"time"
@@ -136,5 +137,49 @@ func TestBM25Search(t *testing.T) {
 	resEmpty := idx.Search("nonexistentword123", 5)
 	if len(resEmpty) != 0 {
 		t.Errorf("expected 0 results, got %d", len(resEmpty))
+	}
+}
+
+func TestCosineSimilarity(t *testing.T) {
+	tests := []struct {
+		name string
+		a, b []float32
+		want float64
+	}{
+		{"identical", []float32{1, 0}, []float32{1, 0}, 1.0},
+		{"orthogonal", []float32{1, 0}, []float32{0, 1}, 0.0},
+		{"opposite", []float32{1, 0}, []float32{-1, 0}, -1.0},
+		{"zero vector", []float32{0, 0}, []float32{1, 1}, 0.0},
+		{"diff length", []float32{1, 0}, []float32{1, 0, 0}, 0.0},
+		{"empty", []float32{}, []float32{}, 0.0},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := store.CosineSimilarity(tc.a, tc.b)
+			if math.Abs(got-tc.want) > 1e-6 {
+				t.Errorf("CosineSimilarity(%v, %v) = %f, want %f", tc.a, tc.b, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestVectorSearch(t *testing.T) {
+	items := map[string]store.Item{
+		"a": {Vector: []float32{1, 0, 0}},
+		"b": {Vector: []float32{0, 1, 0}},
+		"c": {Vector: []float32{0.9, 0.1, 0}}, // closest to [1, 0, 0]
+		"d": {Vector: []float32{1, 0}},       // dimension mismatch -> skipped
+		"e": {Vector: nil},                  // no vector -> skipped
+	}
+	query := []float32{1, 0, 0}
+	results := store.VectorSearch(query, items, 2)
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	if results[0].Key != "a" {
+		t.Errorf("expected top result 'a', got %s", results[0].Key)
+	}
+	if results[1].Key != "c" {
+		t.Errorf("expected second result 'c', got %s", results[1].Key)
 	}
 }
