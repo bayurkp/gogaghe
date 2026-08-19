@@ -183,3 +183,33 @@ func TestVectorSearch(t *testing.T) {
 		t.Errorf("expected second result 'c', got %s", results[1].Key)
 	}
 }
+
+func TestRRF(t *testing.T) {
+	bm25 := []store.ScoredKey{
+		{Key: "a", Score: 10},
+		{Key: "b", Score: 8},
+		{Key: "c", Score: 6},
+	}
+	vec := []store.ScoredKey{
+		{Key: "b", Score: 0.95},
+		{Key: "a", Score: 0.80},
+		{Key: "d", Score: 0.70},
+	}
+	results := store.RRF(bm25, vec, 3, 60.0)
+	if len(results) != 3 {
+		t.Fatalf("expected 3 results from RRF, got %d", len(results))
+	}
+	// "a": rank 1 (bm25) + rank 2 (vec) => 1/(61) + 1/(62) = 0.016393 + 0.016129 = 0.032522
+	// "b": rank 2 (bm25) + rank 1 (vec) => 1/(62) + 1/(61) = 0.032522
+	// Top results should be "a" and "b" (or tie)
+	topKeys := map[string]bool{results[0].Key: true, results[1].Key: true}
+	if !topKeys["a"] || !topKeys["b"] {
+		t.Errorf("expected 'a' and 'b' as top 2 results, got %v", results)
+	}
+
+	// Test default k fallback when k <= 0
+	resDefault := store.RRF(bm25, vec, 2, 0)
+	if len(resDefault) != 2 {
+		t.Errorf("expected 2 results with default k, got %d", len(resDefault))
+	}
+}
