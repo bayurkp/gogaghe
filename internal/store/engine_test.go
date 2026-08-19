@@ -1,0 +1,108 @@
+// internal/store/engine_test.go
+package store_test
+
+import (
+	"fmt"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/bayurkp/gogaghe/internal/store"
+)
+
+func newTestEngine(t *testing.T) *store.Engine {
+	t.Helper()
+	e := store.NewEngine(64*1024*1024, 100*time.Millisecond)
+	t.Cleanup(e.Stop)
+	return e
+}
+
+func TestSetAndGet(t *testing.T) {
+	e := newTestEngine(t)
+	item := store.Item{Value: []byte("hello"), CostMs: 10}
+	if err := e.Set("k1", item); err != nil {
+		t.Fatalf("Set error: %v", err)
+	}
+	got, ok := e.Get("k1")
+	if !ok {
+		t.Fatal("Get: key not found")
+	}
+	if string(got.Value) != "hello" {
+		t.Errorf("Value = %q, want %q", got.Value, "hello")
+	}
+	if got.AccessCount != 1 {
+		t.Errorf("AccessCount = %d, want 1", got.AccessCount)
+	}
+	if e.Len() != 1 {
+		t.Errorf("Len = %d, want 1", e.Len())
+	}
+	if e.MemoryUsageBytes() <= 0 {
+		t.Errorf("MemoryUsageBytes = %d, want > 0", e.MemoryUsageBytes())
+	}
+}
+
+func TestDelete(t *testing.T) {
+	e := newTestEngine(t)
+	_ = e.Set("k2", store.Item{Value: []byte("bye")})
+	if !e.Delete("k2") {
+		t.Error("Delete should return true for existing key")
+	}
+	if _, ok := e.Get("k2"); ok {
+		t.Error("key should not exist after Delete")
+	}
+	if e.Delete("k2") {
+		t.Error("Delete should return false for missing key")
+	}
+	if e.Len() != 0 {
+		t.Errorf("Len = %d, want 0", e.Len())
+	}
+	if e.MemoryUsageBytes() != 0 {
+		t.Errorf("MemoryUsageBytes = %d, want 0", e.MemoryUsageBytes())
+	}
+}
+
+func TestTTLExpiry(t *testing.T) {
+	e := newTestEngine(t)
+	item := store.Item{
+		Value:     []byte("expire me"),
+		ExpiresAt: time.Now().Add(50 * time.Millisecond),
+	}
+	_ = e.Set("ttlkey", item)
+	time.Sleep(200 * time.Millisecond)
+	if _, ok := e.Get("ttlkey"); ok {
+		t.Error("expected key to be expired on Get")
+	}
+}
+
+func TestMemoryLimit(t *testing.T) {
+	// Small engine: 100 bytes
+	e := store.NewEngine(100, 1*time.Second)
+	t.Cleanup(e.Stop)
+
+	bigValue := make([]byte, 200)
+	err := e.Set("big", store.Item{Value: bigValue})
+	if err == nil {
+		t.Error("expected error when setting item exceeding memory limit, got nil")
+	}
+}
+
+func TestConcurrentAccess(t *testing.T) {
+	e := newTestEngine(t)
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			key := fmt.Sprintf("key-%d", i)
+			_ = e.Set(key, store.Item{Value: []byte("v"), CostMs: int64(i)})
+			_, _ = e.Get(key)
+			_ = e.Len()
+			_ = e.MemoryUsageBytes()
+			_ = e.Items()
+			if i%2 == 0 {
+				_ = e.Delete(key)
+			}
+		}(i)
+	}
+	wg.Wait()
+}
