@@ -106,3 +106,35 @@ func TestConcurrentAccess(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestBM25Search(t *testing.T) {
+	idx := store.NewBM25Index()
+	items := map[string]store.Item{
+		"doc1": {Value: []byte("the quick brown fox jumps over the lazy dog")},
+		"doc2": {Value: []byte("quick brown fox")},
+		"doc3": {Value: []byte("lazy dog sleeps all day")},
+	}
+	idx.Rebuild(items)
+
+	results := idx.Search("quick fox", 3)
+	if len(results) == 0 {
+		t.Fatal("expected results, got none")
+	}
+	// doc1 and doc2 should score highest for "quick fox"
+	top := results[0].Key
+	if top != "doc1" && top != "doc2" {
+		t.Errorf("unexpected top result key: %s", top)
+	}
+
+	// Search for something only in doc3
+	res3 := idx.Search("sleeps", 1)
+	if len(res3) != 1 || res3[0].Key != "doc3" {
+		t.Errorf("expected doc3, got %v", res3)
+	}
+
+	// Search for non-existent token
+	resEmpty := idx.Search("nonexistentword123", 5)
+	if len(resEmpty) != 0 {
+		t.Errorf("expected 0 results, got %d", len(resEmpty))
+	}
+}
