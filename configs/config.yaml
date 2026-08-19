@@ -1,0 +1,16 @@
+# configs/config.yaml
+server:
+  grpc_port: 50051
+  metrics_port: 2112
+
+store:
+  max_memory_bytes: 134217728  # 128 MiB
+  ttl_check_interval_seconds: 30
+  eviction_threshold_ratio: 0.90  # trigger eviction at 90% of max_memory_bytes
+
+embedder:
+  enabled: false
+  url: "http://localhost:8000/embed"
+  timeout_seconds: 5
+  worker_pool_size: 4
+  channel_buffer_size: 256
