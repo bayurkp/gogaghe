@@ -18,8 +18,9 @@ func newTestServer(t *testing.T, maxMem int64) (*server.GogagheServer, *store.En
 	e := store.NewEngine(maxMem, 100*time.Millisecond)
 	t.Cleanup(e.Stop)
 	bm25 := store.NewBM25Index()
+	ngram := store.NewNgramIndex(3)
 	metrics := server.NewMetrics()
-	srv := server.NewGogagheServer(e, bm25, metrics, nil)
+	srv := server.NewGogagheServer(e, bm25, ngram, metrics, nil)
 	return srv, e
 }
 
@@ -139,6 +140,35 @@ func TestGogagheServer_HybridSearch(t *testing.T) {
 	}
 	if res.Results[0].Key != "doc1" {
 		t.Errorf("expected doc1 as top result, got %s", res.Results[0].Key)
+	}
+}
+
+func TestGogagheServer_HybridSearch_TypoTolerance(t *testing.T) {
+	srv, _ := newTestServer(t, 1024*1024)
+	ctx := context.Background()
+
+	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
+		Key:   "doc-pg",
+		Value: []byte("PostgreSQL high availability cluster"),
+	})
+	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
+		Key:   "doc-redis",
+		Value: []byte("Redis cache memory"),
+	})
+
+	// Search with typo query: "Postgres" (matches PostgreSQL via character n-gram)
+	res, err := srv.HybridSearch(ctx, &gogaghev1.HybridSearchRequest{
+		Query: "Postgres",
+		TopK:  2,
+	})
+	if err != nil {
+		t.Fatalf("HybridSearch failed: %v", err)
+	}
+	if len(res.Results) == 0 {
+		t.Fatal("expected at least 1 result for typo search")
+	}
+	if res.Results[0].Key != "doc-pg" {
+		t.Errorf("expected doc-pg as top result, got %s", res.Results[0].Key)
 	}
 }
 

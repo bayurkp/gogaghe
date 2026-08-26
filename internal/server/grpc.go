@@ -18,6 +18,7 @@ type GogagheServer struct {
 	gogaghev1.UnimplementedGogagheServiceServer
 	engine   *store.Engine
 	bm25     *store.BM25Index
+	ngram    *store.NgramIndex
 	metrics  *Metrics
 	embedder *embedder.Client
 }
@@ -26,12 +27,14 @@ type GogagheServer struct {
 func NewGogagheServer(
 	engine *store.Engine,
 	bm25 *store.BM25Index,
+	ngram *store.NgramIndex,
 	metrics *Metrics,
 	emb *embedder.Client,
 ) *GogagheServer {
 	return &GogagheServer{
 		engine:   engine,
 		bm25:     bm25,
+		ngram:    ngram,
 		metrics:  metrics,
 		embedder: emb,
 	}
@@ -57,8 +60,11 @@ func (s *GogagheServer) Set(ctx context.Context, req *gogaghev1.SetRequest) (*go
 		return nil, status.Errorf(codes.ResourceExhausted, "set failed: %v", err)
 	}
 
-	// Incrementally update BM25 index for O(tokens) write complexity
+	// Incrementally update BM25 and Ngram indexes for O(tokens) write complexity
 	s.bm25.IndexDocument(req.Key, req.Value)
+	if s.ngram != nil {
+		s.ngram.IndexDocument(req.Key, req.Value)
+	}
 
 	// Async embedding if requested and embedder is configured.
 	if req.AutoEmbed && s.embedder != nil {
@@ -100,6 +106,9 @@ func (s *GogagheServer) Delete(ctx context.Context, req *gogaghev1.DeleteRequest
 	deleted := s.engine.Delete(req.Key)
 	if deleted {
 		s.bm25.RemoveDocument(req.Key)
+		if s.ngram != nil {
+			s.ngram.RemoveDocument(req.Key)
+		}
 	}
 	s.metrics.ItemsCount.Set(float64(s.engine.Len()))
 	s.metrics.MemoryUsageBytes.Set(float64(s.engine.MemoryUsageBytes()))
@@ -125,9 +134,31 @@ func (s *GogagheServer) HybridSearch(ctx context.Context, req *gogaghev1.HybridS
 		k = 60.0
 	}
 
-	bm25Results := s.bm25.Search(req.Query, topK*2)
-	vecResults := store.VectorSearch(req.QueryVector, items, topK*2)
-	fused := store.RRF(bm25Results, vecResults, topK, k)
+	// Multi-resolution streams: Surface (N-gram) + Lexical (BM25) + Semantic (Dense Vector)
+	var rankLists [][]store.ScoredKey
+
+	if s.ngram != nil && len(req.Query) > 0 {
+		ngramResults := s.ngram.Search(req.Query, topK*2)
+		if len(ngramResults) > 0 {
+			rankLists = append(rankLists, ngramResults)
+		}
+	}
+
+	if s.bm25 != nil && len(req.Query) > 0 {
+		bm25Results := s.bm25.Search(req.Query, topK*2)
+		if len(bm25Results) > 0 {
+			rankLists = append(rankLists, bm25Results)
+		}
+	}
+
+	if len(req.QueryVector) > 0 {
+		vecResults := store.VectorSearch(req.QueryVector, items, topK*2)
+		if len(vecResults) > 0 {
+			rankLists = append(rankLists, vecResults)
+		}
+	}
+
+	fused := store.RRFMulti(rankLists, topK, k)
 
 	return &gogaghev1.HybridSearchResponse{Results: toProtoResults(fused, s.engine)}, nil
 }

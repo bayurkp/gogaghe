@@ -38,6 +38,7 @@ func main() {
 		time.Duration(cfg.Store.TTLCheckIntervalSeconds)*time.Second,
 	)
 	bm25 := store.NewBM25Index()
+	ngram := store.NewNgramIndex(3)
 	metrics := server.NewMetrics()
 
 	// --- Embedder sidecar client (optional) ---
@@ -52,13 +53,15 @@ func main() {
 			if err := engine.Set(key, item); err != nil {
 				slog.Warn("embedder callback: could not update vector", "key", key, "err", err)
 			}
-			bm25.Rebuild(engine.Items())
+			itemsSnapshot := engine.Items()
+			bm25.Rebuild(itemsSnapshot)
+			ngram.Rebuild(itemsSnapshot)
 		})
 	}
 
 	// --- gRPC server ---
 	grpcSrv := grpc.NewServer()
-	gogaghev1.RegisterGogagheServiceServer(grpcSrv, server.NewGogagheServer(engine, bm25, metrics, emb))
+	gogaghev1.RegisterGogagheServiceServer(grpcSrv, server.NewGogagheServer(engine, bm25, ngram, metrics, emb))
 	reflection.Register(grpcSrv)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Server.GRPCPort))
