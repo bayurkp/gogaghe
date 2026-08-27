@@ -604,9 +604,9 @@ func (x *LexicalSearchResponse) GetResults() []*SearchResult {
 // --- VectorSearch (Dense Vector Cosine) ---
 type VectorSearchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	QueryVector   []float32              `protobuf:"fixed32,1,rep,packed,name=query_vector,json=queryVector,proto3" json:"query_vector,omitempty"`
-	TopK          int32                  `protobuf:"varint,2,opt,name=top_k,json=topK,proto3" json:"top_k,omitempty"`
-	Query         string                 `protobuf:"bytes,3,opt,name=query,proto3" json:"query,omitempty"` // optional: query text to auto-embed if query_vector is omitted
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`                                         // optional: query text to auto-embed if query_vector is omitted
+	QueryVector   []float32              `protobuf:"fixed32,2,rep,packed,name=query_vector,json=queryVector,proto3" json:"query_vector,omitempty"` // optional: pre-computed semantic query vector
+	TopK          int32                  `protobuf:"varint,3,opt,name=top_k,json=topK,proto3" json:"top_k,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -641,6 +641,13 @@ func (*VectorSearchRequest) Descriptor() ([]byte, []int) {
 	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{10}
 }
 
+func (x *VectorSearchRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
 func (x *VectorSearchRequest) GetQueryVector() []float32 {
 	if x != nil {
 		return x.QueryVector
@@ -653,13 +660,6 @@ func (x *VectorSearchRequest) GetTopK() int32 {
 		return x.TopK
 	}
 	return 0
-}
-
-func (x *VectorSearchRequest) GetQuery() string {
-	if x != nil {
-		return x.Query
-	}
-	return ""
 }
 
 type VectorSearchResponse struct {
@@ -927,10 +927,10 @@ const file_gogaghe_v1_gogaghe_proto_rawDesc = "" +
 	"\x05top_k\x18\x02 \x01(\x05R\x04topK\"K\n" +
 	"\x15LexicalSearchResponse\x122\n" +
 	"\aresults\x18\x01 \x03(\v2\x18.gogaghe.v1.SearchResultR\aresults\"c\n" +
-	"\x13VectorSearchRequest\x12!\n" +
-	"\fquery_vector\x18\x01 \x03(\x02R\vqueryVector\x12\x13\n" +
-	"\x05top_k\x18\x02 \x01(\x05R\x04topK\x12\x14\n" +
-	"\x05query\x18\x03 \x01(\tR\x05query\"J\n" +
+	"\x13VectorSearchRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12!\n" +
+	"\fquery_vector\x18\x02 \x03(\x02R\vqueryVector\x12\x13\n" +
+	"\x05top_k\x18\x03 \x01(\x05R\x04topK\"J\n" +
 	"\x14VectorSearchResponse\x122\n" +
 	"\aresults\x18\x01 \x03(\v2\x18.gogaghe.v1.SearchResultR\aresults\"\xb4\x01\n" +
 	"\x13HybridSearchRequest\x12\x14\n" +

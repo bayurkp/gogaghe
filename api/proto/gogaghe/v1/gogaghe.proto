@@ -84,9 +84,9 @@ message LexicalSearchResponse {
 
 // --- VectorSearch (Dense Vector Cosine) ---
 message VectorSearchRequest {
-  repeated float query_vector = 1;
-  int32          top_k        = 2;
-  string         query        = 3; // optional: query text to auto-embed if query_vector is omitted
+  string         query        = 1; // optional: query text to auto-embed if query_vector is omitted
+  repeated float query_vector = 2; // optional: pre-computed semantic query vector
+  int32          top_k        = 3;
 }
 
 message VectorSearchResponse {
@@ -95,11 +95,11 @@ message VectorSearchResponse {
 
 // --- HybridSearch (RRF Fusion) ---
 message HybridSearchRequest {
-  string                  query      = 1; // query text for surface/lexical
+  string                  query        = 1; // query text for surface/lexical
   repeated float          query_vector = 2; // semantic query vector
-  int32                   top_k      = 3;
-  float                   rrf_k      = 4; // RRF constant, default 60.0
-  repeated SearchStrategy strategies = 5; // Optional: specify exact strategies to fuse (if empty, auto-detects from provided fields)
+  int32                   top_k        = 3;
+  float                   rrf_k        = 4; // RRF constant, default 60.0
+  repeated SearchStrategy strategies   = 5; // Optional: specify exact strategies to fuse (if empty, auto-detects from provided fields)
 }
 
 message HybridSearchResponse {
