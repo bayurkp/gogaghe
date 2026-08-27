@@ -164,7 +164,16 @@ func (s *GogagheServer) SurfaceSearch(ctx context.Context, req *gogaghev1.Surfac
 
 	var results []store.ScoredKey
 	if s.ngram != nil && len(req.Query) > 0 {
-		results = s.ngram.Search(req.Query, int(req.TopK))
+		var metric store.SurfaceMetricType
+		switch req.Metric {
+		case gogaghev1.SurfaceMetric_SURFACE_METRIC_JACCARD:
+			metric = store.MetricJaccard
+		case gogaghev1.SurfaceMetric_SURFACE_METRIC_OVERLAP:
+			metric = store.MetricOverlap
+		default:
+			metric = store.MetricDice
+		}
+		results = s.ngram.SearchWithMetric(req.Query, int(req.TopK), metric)
 	}
 	return &gogaghev1.SurfaceSearchResponse{Results: toProtoResults(results, s.engine)}, nil
 }

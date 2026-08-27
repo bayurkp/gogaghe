@@ -132,3 +132,30 @@ func TestRRFMulti_ThreeStreams(t *testing.T) {
 		t.Errorf("expected doc-exact as #1 rank, got %s", results[0].Key)
 	}
 }
+
+func TestNgramIndex_Metrics_Dice_Jaccard_Overlap(t *testing.T) {
+	idx := store.NewNgramIndex(3)
+	items := map[string]store.Item{
+		"doc1": {Value: []byte("iPhone 15 Pro Max")},
+		"doc2": {Value: []byte("Samsung Galaxy Ultra")},
+	}
+	idx.Rebuild(items)
+
+	// Dice (default)
+	diceRes := idx.SearchWithMetric("iPhone", 2, store.MetricDice)
+	if len(diceRes) == 0 || diceRes[0].Key != "doc1" {
+		t.Fatalf("expected doc1 for Dice metric, got %v", diceRes)
+	}
+
+	// Jaccard
+	jaccardRes := idx.SearchWithMetric("iPhone", 2, store.MetricJaccard)
+	if len(jaccardRes) == 0 || jaccardRes[0].Key != "doc1" {
+		t.Fatalf("expected doc1 for Jaccard metric, got %v", jaccardRes)
+	}
+
+	// Overlap
+	overlapRes := idx.SearchWithMetric("iPhone", 2, store.MetricOverlap)
+	if len(overlapRes) == 0 || overlapRes[0].Key != "doc1" {
+		t.Fatalf("expected doc1 for Overlap metric, got %v", overlapRes)
+	}
+}

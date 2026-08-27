@@ -92,9 +92,22 @@ func (idx *NgramIndex) RemoveDocument(key string) {
 	delete(idx.docNgrams, key)
 }
 
-// Search computes character n-gram similarity (Sørensen–Dice coefficient)
-// against all matching documents for a query and returns the top-k results.
+// SurfaceMetricType specifies the similarity metric for character N-gram matching.
+type SurfaceMetricType int
+
+const (
+	MetricDice SurfaceMetricType = iota
+	MetricJaccard
+	MetricOverlap
+)
+
+// Search computes character n-gram similarity using default Sørensen–Dice coefficient.
 func (idx *NgramIndex) Search(query string, topK int) []ScoredKey {
+	return idx.SearchWithMetric(query, topK, MetricDice)
+}
+
+// SearchWithMetric computes character n-gram similarity with the specified metric (Dice, Jaccard, Overlap).
+func (idx *NgramIndex) SearchWithMetric(query string, topK int, metric SurfaceMetricType) []ScoredKey {
 	qNgrams := ExtractNgrams(query, idx.n)
 	if len(qNgrams) == 0 {
 		return nil
@@ -131,12 +144,30 @@ func (idx *NgramIndex) Search(query string, topK int) []ScoredKey {
 
 	for docKey, shared := range sharedCounts {
 		docLen := float64(idx.docNgramCount[docKey])
-		// Dice coefficient: 2 * |Q ∩ D| / (|Q| + |D|)
-		diceScore := (2.0 * float64(shared)) / (lenQ + docLen)
-		if diceScore > 0 {
+		var score float64
+
+		switch metric {
+		case MetricJaccard:
+			// Jaccard: |Q ∩ D| / |Q ∪ D| = |Q ∩ D| / (|Q| + |D| - |Q ∩ D|)
+			union := lenQ + docLen - float64(shared)
+			if union > 0 {
+				score = float64(shared) / union
+			}
+		case MetricOverlap:
+			// Overlap: |Q ∩ D| / min(|Q|, |D|)
+			minLen := math.Min(lenQ, docLen)
+			if minLen > 0 {
+				score = float64(shared) / minLen
+			}
+		default:
+			// Sørensen–Dice: 2 * |Q ∩ D| / (|Q| + |D|)
+			score = (2.0 * float64(shared)) / (lenQ + docLen)
+		}
+
+		if score > 0 {
 			ranked = append(ranked, ScoredKey{
 				Key:   docKey,
-				Score: math.Round(diceScore*10000) / 10000, // round to 4 decimals
+				Score: math.Round(score*10000) / 10000, // round to 4 decimals
 			})
 		}
 	}

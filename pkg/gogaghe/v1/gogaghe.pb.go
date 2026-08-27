@@ -82,6 +82,59 @@ func (SearchStrategy) EnumDescriptor() ([]byte, []int) {
 	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{0}
 }
 
+// SurfaceMetric specifies the similarity metric for character N-gram matching.
+type SurfaceMetric int32
+
+const (
+	SurfaceMetric_SURFACE_METRIC_UNSPECIFIED SurfaceMetric = 0 // Uses default (Dice coefficient)
+	SurfaceMetric_SURFACE_METRIC_DICE        SurfaceMetric = 1 // Sørensen–Dice: 2*|Q∩D| / (|Q| + |D|)
+	SurfaceMetric_SURFACE_METRIC_JACCARD     SurfaceMetric = 2 // Jaccard Index: |Q∩D| / |Q∪D|
+	SurfaceMetric_SURFACE_METRIC_OVERLAP     SurfaceMetric = 3 // Overlap: |Q∩D| / min(|Q|, |D|)
+)
+
+// Enum value maps for SurfaceMetric.
+var (
+	SurfaceMetric_name = map[int32]string{
+		0: "SURFACE_METRIC_UNSPECIFIED",
+		1: "SURFACE_METRIC_DICE",
+		2: "SURFACE_METRIC_JACCARD",
+		3: "SURFACE_METRIC_OVERLAP",
+	}
+	SurfaceMetric_value = map[string]int32{
+		"SURFACE_METRIC_UNSPECIFIED": 0,
+		"SURFACE_METRIC_DICE":        1,
+		"SURFACE_METRIC_JACCARD":     2,
+		"SURFACE_METRIC_OVERLAP":     3,
+	}
+)
+
+func (x SurfaceMetric) Enum() *SurfaceMetric {
+	p := new(SurfaceMetric)
+	*p = x
+	return p
+}
+
+func (x SurfaceMetric) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SurfaceMetric) Descriptor() protoreflect.EnumDescriptor {
+	return file_gogaghe_v1_gogaghe_proto_enumTypes[1].Descriptor()
+}
+
+func (SurfaceMetric) Type() protoreflect.EnumType {
+	return &file_gogaghe_v1_gogaghe_proto_enumTypes[1]
+}
+
+func (x SurfaceMetric) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SurfaceMetric.Descriptor instead.
+func (SurfaceMetric) EnumDescriptor() ([]byte, []int) {
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{1}
+}
+
 // --- Set ---
 type SetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -418,6 +471,7 @@ type SurfaceSearchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
 	TopK          int32                  `protobuf:"varint,2,opt,name=top_k,json=topK,proto3" json:"top_k,omitempty"`
+	Metric        SurfaceMetric          `protobuf:"varint,3,opt,name=metric,proto3,enum=gogaghe.v1.SurfaceMetric" json:"metric,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -464,6 +518,13 @@ func (x *SurfaceSearchRequest) GetTopK() int32 {
 		return x.TopK
 	}
 	return 0
+}
+
+func (x *SurfaceSearchRequest) GetMetric() SurfaceMetric {
+	if x != nil {
+		return x.Metric
+	}
+	return SurfaceMetric_SURFACE_METRIC_UNSPECIFIED
 }
 
 type SurfaceSearchResponse struct {
@@ -1213,10 +1274,11 @@ const file_gogaghe_v1_gogaghe_proto_rawDesc = "" +
 	"\rDeleteRequest\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\"*\n" +
 	"\x0eDeleteResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"A\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"t\n" +
 	"\x14SurfaceSearchRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n" +
-	"\x05top_k\x18\x02 \x01(\x05R\x04topK\"K\n" +
+	"\x05top_k\x18\x02 \x01(\x05R\x04topK\x121\n" +
+	"\x06metric\x18\x03 \x01(\x0e2\x19.gogaghe.v1.SurfaceMetricR\x06metric\"K\n" +
 	"\x15SurfaceSearchResponse\x122\n" +
 	"\aresults\x18\x01 \x03(\v2\x18.gogaghe.v1.SearchResultR\aresults\">\n" +
 	"\x11Bm25SearchRequest\x12\x14\n" +
@@ -1265,7 +1327,12 @@ const file_gogaghe_v1_gogaghe_proto_rawDesc = "" +
 	"\x1cSEARCH_STRATEGY_LEXICAL_BM25\x10\x02\x12!\n" +
 	"\x1dSEARCH_STRATEGY_LEXICAL_TFIDF\x10\x03\x12 \n" +
 	"\x1cSEARCH_STRATEGY_SEMANTIC_LSA\x10\x04\x12\"\n" +
-	"\x1eSEARCH_STRATEGY_SEMANTIC_DENSE\x10\x052\xfa\x05\n" +
+	"\x1eSEARCH_STRATEGY_SEMANTIC_DENSE\x10\x05*\x80\x01\n" +
+	"\rSurfaceMetric\x12\x1e\n" +
+	"\x1aSURFACE_METRIC_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13SURFACE_METRIC_DICE\x10\x01\x12\x1a\n" +
+	"\x16SURFACE_METRIC_JACCARD\x10\x02\x12\x1a\n" +
+	"\x16SURFACE_METRIC_OVERLAP\x10\x032\xfa\x05\n" +
 	"\x0eGogagheService\x126\n" +
 	"\x03Set\x12\x16.gogaghe.v1.SetRequest\x1a\x17.gogaghe.v1.SetResponse\x126\n" +
 	"\x03Get\x12\x16.gogaghe.v1.GetRequest\x1a\x17.gogaghe.v1.GetResponse\x12?\n" +
@@ -1291,66 +1358,68 @@ func file_gogaghe_v1_gogaghe_proto_rawDescGZIP() []byte {
 	return file_gogaghe_v1_gogaghe_proto_rawDescData
 }
 
-var file_gogaghe_v1_gogaghe_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_gogaghe_v1_gogaghe_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_gogaghe_v1_gogaghe_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_gogaghe_v1_gogaghe_proto_goTypes = []any{
 	(SearchStrategy)(0),           // 0: gogaghe.v1.SearchStrategy
-	(*SetRequest)(nil),            // 1: gogaghe.v1.SetRequest
-	(*SetResponse)(nil),           // 2: gogaghe.v1.SetResponse
-	(*GetRequest)(nil),            // 3: gogaghe.v1.GetRequest
-	(*GetResponse)(nil),           // 4: gogaghe.v1.GetResponse
-	(*DeleteRequest)(nil),         // 5: gogaghe.v1.DeleteRequest
-	(*DeleteResponse)(nil),        // 6: gogaghe.v1.DeleteResponse
-	(*SurfaceSearchRequest)(nil),  // 7: gogaghe.v1.SurfaceSearchRequest
-	(*SurfaceSearchResponse)(nil), // 8: gogaghe.v1.SurfaceSearchResponse
-	(*Bm25SearchRequest)(nil),     // 9: gogaghe.v1.Bm25SearchRequest
-	(*Bm25SearchResponse)(nil),    // 10: gogaghe.v1.Bm25SearchResponse
-	(*LexicalSearchRequest)(nil),  // 11: gogaghe.v1.LexicalSearchRequest
-	(*LexicalSearchResponse)(nil), // 12: gogaghe.v1.LexicalSearchResponse
-	(*TfidfSearchRequest)(nil),    // 13: gogaghe.v1.TfidfSearchRequest
-	(*TfidfSearchResponse)(nil),   // 14: gogaghe.v1.TfidfSearchResponse
-	(*LsaSearchRequest)(nil),      // 15: gogaghe.v1.LsaSearchRequest
-	(*LsaSearchResponse)(nil),     // 16: gogaghe.v1.LsaSearchResponse
-	(*VectorSearchRequest)(nil),   // 17: gogaghe.v1.VectorSearchRequest
-	(*VectorSearchResponse)(nil),  // 18: gogaghe.v1.VectorSearchResponse
-	(*HybridSearchRequest)(nil),   // 19: gogaghe.v1.HybridSearchRequest
-	(*HybridSearchResponse)(nil),  // 20: gogaghe.v1.HybridSearchResponse
-	(*SearchResult)(nil),          // 21: gogaghe.v1.SearchResult
+	(SurfaceMetric)(0),            // 1: gogaghe.v1.SurfaceMetric
+	(*SetRequest)(nil),            // 2: gogaghe.v1.SetRequest
+	(*SetResponse)(nil),           // 3: gogaghe.v1.SetResponse
+	(*GetRequest)(nil),            // 4: gogaghe.v1.GetRequest
+	(*GetResponse)(nil),           // 5: gogaghe.v1.GetResponse
+	(*DeleteRequest)(nil),         // 6: gogaghe.v1.DeleteRequest
+	(*DeleteResponse)(nil),        // 7: gogaghe.v1.DeleteResponse
+	(*SurfaceSearchRequest)(nil),  // 8: gogaghe.v1.SurfaceSearchRequest
+	(*SurfaceSearchResponse)(nil), // 9: gogaghe.v1.SurfaceSearchResponse
+	(*Bm25SearchRequest)(nil),     // 10: gogaghe.v1.Bm25SearchRequest
+	(*Bm25SearchResponse)(nil),    // 11: gogaghe.v1.Bm25SearchResponse
+	(*LexicalSearchRequest)(nil),  // 12: gogaghe.v1.LexicalSearchRequest
+	(*LexicalSearchResponse)(nil), // 13: gogaghe.v1.LexicalSearchResponse
+	(*TfidfSearchRequest)(nil),    // 14: gogaghe.v1.TfidfSearchRequest
+	(*TfidfSearchResponse)(nil),   // 15: gogaghe.v1.TfidfSearchResponse
+	(*LsaSearchRequest)(nil),      // 16: gogaghe.v1.LsaSearchRequest
+	(*LsaSearchResponse)(nil),     // 17: gogaghe.v1.LsaSearchResponse
+	(*VectorSearchRequest)(nil),   // 18: gogaghe.v1.VectorSearchRequest
+	(*VectorSearchResponse)(nil),  // 19: gogaghe.v1.VectorSearchResponse
+	(*HybridSearchRequest)(nil),   // 20: gogaghe.v1.HybridSearchRequest
+	(*HybridSearchResponse)(nil),  // 21: gogaghe.v1.HybridSearchResponse
+	(*SearchResult)(nil),          // 22: gogaghe.v1.SearchResult
 }
 var file_gogaghe_v1_gogaghe_proto_depIdxs = []int32{
-	21, // 0: gogaghe.v1.SurfaceSearchResponse.results:type_name -> gogaghe.v1.SearchResult
-	21, // 1: gogaghe.v1.Bm25SearchResponse.results:type_name -> gogaghe.v1.SearchResult
-	21, // 2: gogaghe.v1.LexicalSearchResponse.results:type_name -> gogaghe.v1.SearchResult
-	21, // 3: gogaghe.v1.TfidfSearchResponse.results:type_name -> gogaghe.v1.SearchResult
-	21, // 4: gogaghe.v1.LsaSearchResponse.results:type_name -> gogaghe.v1.SearchResult
-	21, // 5: gogaghe.v1.VectorSearchResponse.results:type_name -> gogaghe.v1.SearchResult
-	0,  // 6: gogaghe.v1.HybridSearchRequest.strategies:type_name -> gogaghe.v1.SearchStrategy
-	21, // 7: gogaghe.v1.HybridSearchResponse.results:type_name -> gogaghe.v1.SearchResult
-	1,  // 8: gogaghe.v1.GogagheService.Set:input_type -> gogaghe.v1.SetRequest
-	3,  // 9: gogaghe.v1.GogagheService.Get:input_type -> gogaghe.v1.GetRequest
-	5,  // 10: gogaghe.v1.GogagheService.Delete:input_type -> gogaghe.v1.DeleteRequest
-	7,  // 11: gogaghe.v1.GogagheService.SurfaceSearch:input_type -> gogaghe.v1.SurfaceSearchRequest
-	9,  // 12: gogaghe.v1.GogagheService.Bm25Search:input_type -> gogaghe.v1.Bm25SearchRequest
-	11, // 13: gogaghe.v1.GogagheService.LexicalSearch:input_type -> gogaghe.v1.LexicalSearchRequest
-	13, // 14: gogaghe.v1.GogagheService.TfidfSearch:input_type -> gogaghe.v1.TfidfSearchRequest
-	15, // 15: gogaghe.v1.GogagheService.LsaSearch:input_type -> gogaghe.v1.LsaSearchRequest
-	17, // 16: gogaghe.v1.GogagheService.VectorSearch:input_type -> gogaghe.v1.VectorSearchRequest
-	19, // 17: gogaghe.v1.GogagheService.HybridSearch:input_type -> gogaghe.v1.HybridSearchRequest
-	2,  // 18: gogaghe.v1.GogagheService.Set:output_type -> gogaghe.v1.SetResponse
-	4,  // 19: gogaghe.v1.GogagheService.Get:output_type -> gogaghe.v1.GetResponse
-	6,  // 20: gogaghe.v1.GogagheService.Delete:output_type -> gogaghe.v1.DeleteResponse
-	8,  // 21: gogaghe.v1.GogagheService.SurfaceSearch:output_type -> gogaghe.v1.SurfaceSearchResponse
-	10, // 22: gogaghe.v1.GogagheService.Bm25Search:output_type -> gogaghe.v1.Bm25SearchResponse
-	12, // 23: gogaghe.v1.GogagheService.LexicalSearch:output_type -> gogaghe.v1.LexicalSearchResponse
-	14, // 24: gogaghe.v1.GogagheService.TfidfSearch:output_type -> gogaghe.v1.TfidfSearchResponse
-	16, // 25: gogaghe.v1.GogagheService.LsaSearch:output_type -> gogaghe.v1.LsaSearchResponse
-	18, // 26: gogaghe.v1.GogagheService.VectorSearch:output_type -> gogaghe.v1.VectorSearchResponse
-	20, // 27: gogaghe.v1.GogagheService.HybridSearch:output_type -> gogaghe.v1.HybridSearchResponse
-	18, // [18:28] is the sub-list for method output_type
-	8,  // [8:18] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	1,  // 0: gogaghe.v1.SurfaceSearchRequest.metric:type_name -> gogaghe.v1.SurfaceMetric
+	22, // 1: gogaghe.v1.SurfaceSearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	22, // 2: gogaghe.v1.Bm25SearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	22, // 3: gogaghe.v1.LexicalSearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	22, // 4: gogaghe.v1.TfidfSearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	22, // 5: gogaghe.v1.LsaSearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	22, // 6: gogaghe.v1.VectorSearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	0,  // 7: gogaghe.v1.HybridSearchRequest.strategies:type_name -> gogaghe.v1.SearchStrategy
+	22, // 8: gogaghe.v1.HybridSearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	2,  // 9: gogaghe.v1.GogagheService.Set:input_type -> gogaghe.v1.SetRequest
+	4,  // 10: gogaghe.v1.GogagheService.Get:input_type -> gogaghe.v1.GetRequest
+	6,  // 11: gogaghe.v1.GogagheService.Delete:input_type -> gogaghe.v1.DeleteRequest
+	8,  // 12: gogaghe.v1.GogagheService.SurfaceSearch:input_type -> gogaghe.v1.SurfaceSearchRequest
+	10, // 13: gogaghe.v1.GogagheService.Bm25Search:input_type -> gogaghe.v1.Bm25SearchRequest
+	12, // 14: gogaghe.v1.GogagheService.LexicalSearch:input_type -> gogaghe.v1.LexicalSearchRequest
+	14, // 15: gogaghe.v1.GogagheService.TfidfSearch:input_type -> gogaghe.v1.TfidfSearchRequest
+	16, // 16: gogaghe.v1.GogagheService.LsaSearch:input_type -> gogaghe.v1.LsaSearchRequest
+	18, // 17: gogaghe.v1.GogagheService.VectorSearch:input_type -> gogaghe.v1.VectorSearchRequest
+	20, // 18: gogaghe.v1.GogagheService.HybridSearch:input_type -> gogaghe.v1.HybridSearchRequest
+	3,  // 19: gogaghe.v1.GogagheService.Set:output_type -> gogaghe.v1.SetResponse
+	5,  // 20: gogaghe.v1.GogagheService.Get:output_type -> gogaghe.v1.GetResponse
+	7,  // 21: gogaghe.v1.GogagheService.Delete:output_type -> gogaghe.v1.DeleteResponse
+	9,  // 22: gogaghe.v1.GogagheService.SurfaceSearch:output_type -> gogaghe.v1.SurfaceSearchResponse
+	11, // 23: gogaghe.v1.GogagheService.Bm25Search:output_type -> gogaghe.v1.Bm25SearchResponse
+	13, // 24: gogaghe.v1.GogagheService.LexicalSearch:output_type -> gogaghe.v1.LexicalSearchResponse
+	15, // 25: gogaghe.v1.GogagheService.TfidfSearch:output_type -> gogaghe.v1.TfidfSearchResponse
+	17, // 26: gogaghe.v1.GogagheService.LsaSearch:output_type -> gogaghe.v1.LsaSearchResponse
+	19, // 27: gogaghe.v1.GogagheService.VectorSearch:output_type -> gogaghe.v1.VectorSearchResponse
+	21, // 28: gogaghe.v1.GogagheService.HybridSearch:output_type -> gogaghe.v1.HybridSearchResponse
+	19, // [19:29] is the sub-list for method output_type
+	9,  // [9:19] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_gogaghe_v1_gogaghe_proto_init() }
@@ -1363,7 +1432,7 @@ func file_gogaghe_v1_gogaghe_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_gogaghe_v1_gogaghe_proto_rawDesc), len(file_gogaghe_v1_gogaghe_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,

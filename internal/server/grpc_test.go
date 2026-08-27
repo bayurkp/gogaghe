@@ -163,7 +163,7 @@ func TestGogagheServer_SurfaceSearch(t *testing.T) {
 		Value: []byte("Samsung Galaxy S24 Ultra"),
 	})
 
-	// Search with typo query: "iphon"
+	// 1. Search with typo query: "iphon" (default Dice metric)
 	res, err := srv.SurfaceSearch(ctx, &gogaghev1.SurfaceSearchRequest{
 		Query: "iphon",
 		TopK:  2,
@@ -173,6 +173,19 @@ func TestGogagheServer_SurfaceSearch(t *testing.T) {
 	}
 	if len(res.Results) == 0 || res.Results[0].Key != "doc-iphone" {
 		t.Fatalf("expected doc-iphone as top surface search result, got: %v", res.Results)
+	}
+
+	// 2. Search with Jaccard metric explicitly
+	resJaccard, err := srv.SurfaceSearch(ctx, &gogaghev1.SurfaceSearchRequest{
+		Query:  "iphon",
+		TopK:   2,
+		Metric: gogaghev1.SurfaceMetric_SURFACE_METRIC_JACCARD,
+	})
+	if err != nil {
+		t.Fatalf("SurfaceSearch with Jaccard failed: %v", err)
+	}
+	if len(resJaccard.Results) == 0 || resJaccard.Results[0].Key != "doc-iphone" {
+		t.Fatalf("expected doc-iphone as top surface search result for Jaccard, got: %v", resJaccard.Results)
 	}
 }
 

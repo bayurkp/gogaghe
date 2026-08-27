@@ -67,10 +67,19 @@ message DeleteResponse {
   bool deleted = 1;
 }
 
+// SurfaceMetric specifies the similarity metric for character N-gram matching.
+enum SurfaceMetric {
+  SURFACE_METRIC_UNSPECIFIED = 0; // Uses default (Dice coefficient)
+  SURFACE_METRIC_DICE        = 1; // Sørensen–Dice: 2*|Q∩D| / (|Q| + |D|)
+  SURFACE_METRIC_JACCARD     = 2; // Jaccard Index: |Q∩D| / |Q∪D|
+  SURFACE_METRIC_OVERLAP     = 3; // Overlap: |Q∩D| / min(|Q|, |D|)
+}
+
 // --- SurfaceSearch (Character N-gram) ---
 message SurfaceSearchRequest {
-  string query = 1;
-  int32  top_k = 2;
+  string        query  = 1;
+  int32         top_k  = 2;
+  SurfaceMetric metric = 3;
 }
 
 message SurfaceSearchResponse {
