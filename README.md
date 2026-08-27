@@ -1,14 +1,14 @@
 # gogaghe — In-Memory Hybrid Store & Vector Engine
 
-> **"Cache smarter, not harder."** — A production-grade, zero-dependency in-memory key-value store with hybrid BM25+vector search, cost-aware eviction, and async embedding pipeline. Built entirely in Go, deployable as a single Docker container.
+> **"Cache smarter, not harder."** — A production-grade, zero-dependency in-memory key-value store with multi-resolution hybrid search (Character N-gram + BM25 + Vector), cost-aware eviction, and async embedding pipeline. Built entirely in Go, deployable as a single Docker container.
 
 ---
 
 ## 📌 Executive Summary & Product Requirements Document (PRD)
 
-**gogaghe** is a standalone in-memory microservice engineered for **low-latency, AI-ready backend workloads**. It fills the gap between a plain Redis cache (no search) and a dedicated vector database (too heavyweight for in-process use): a single Go binary that stores, searches, and scores cached data — lexically and semantically — without any external dependencies.
+**gogaghe** is a standalone in-memory microservice engineered for **low-latency, AI-ready backend workloads**. It fills the gap between a plain Redis cache (no search) and a dedicated vector database (too heavyweight for in-process use): a single Go binary that stores, searches, and scores cached data across **three distinct language representation layers** (surface, lexical, and semantic) without any external dependencies.
 
-This project demonstrates mastery of advanced Go concurrency, gRPC networking, in-memory data structures, hybrid search algorithms, and industry-standard microservice architecture.
+This project demonstrates mastery of advanced Go concurrency, gRPC networking, in-memory data structures, multi-stream hybrid search algorithms, and industry-standard microservice architecture.
 
 ---
 
@@ -18,8 +18,9 @@ Modern backend services need a smarter caching layer:
 
 | Problem | gogaghe Solution |
 | :--- | :--- |
-| Redis has no hybrid search (BM25 + vector) without paid modules | Built-in pure-Go BM25 + cosine similarity |
-| Dedicated vector DBs (Pinecone, Weaviate) are too heavy for in-process use | Single lightweight binary, zero Cgo |
+| Redis has no hybrid search without paid/heavy modules | Built-in pure-Go Character N-gram + BM25 + Cosine Similarity |
+| Search fails on typos, product SKUs, or technical identifiers | Character trigram index with Sørensen–Dice coefficient |
+| Dedicated vector DBs (Pinecone, Weaviate) are too heavy for in-process caching | Single lightweight binary, zero Cgo |
 | Standard caches evict LRU — expensive AI computation results get evicted too | Cost-Aware Eviction (computation cost × access frequency) |
 | Embedding generation blocks write latency | Async embedding pipeline via pluggable sidecar |
 
@@ -28,7 +29,11 @@ Modern backend services need a smarter caching layer:
 ## ⚡ Key Highlights
 
 1. **Sub-millisecond Reads/Writes** — all data lives in RAM, no disk I/O on hot paths.
-2. **Hybrid Search** — BM25 lexical search + cosine similarity vector search, merged via Reciprocal Rank Fusion (RRF) into one ranked result list.
+2. **Multi-Resolution Hybrid Search** — 3-tier language hierarchy (*Surface $\to$ Lexical $\to$ Semantic*):
+   * **Character N-gram (Surface)**: Typo tolerance, prefix matching, and technical identifiers (`Postgres` $\leftrightarrow$ `PostgreSQL`, `iphon` $\leftrightarrow$ `iPhone`).
+   * **BM25 (Lexical)**: Term frequency, rarity (IDF), and document length normalization.
+   * **Dense Vector (Semantic)**: Cosine similarity capturing contextual meaning via embeddings.
+   * **Multi-Stream RRF**: Reciprocal Rank Fusion merging all three ranked candidate lists into a unified, fair final ranking without score distribution mismatch.
 3. **Cost-Aware Eviction** — items with low computation cost and low access frequency are evicted first. Expensive AI results survive longer.
 4. **Async Auto-Embedding** — `Set(auto_embed=true)` responds to the client instantly (< 1 ms). Embedding happens in the background via a buffered goroutine worker pool.
 5. **Zero Cgo** — pure Go binary, cross-compiles to any Linux/amd64 target without a C toolchain.
@@ -64,6 +69,28 @@ Modern backend services need a smarter caching layer:
          └── (3) Fallback ──────────────────────► [ PostgreSQL / Primary DB ]
 ```
 
+### Multi-Tier Hybrid Search Hierarchy
+
+```text
+                       HYBRID QUERY
+                            │
+        ┌───────────────────┼───────────────────┐
+        ▼                   ▼                   ▼
+     SURFACE             LEXICAL             SEMANTIC
+   N-gram Index         BM25 Index         Vector Search
+ (Character Level)     (Token Level)      (Embedding Level)
+   "mirip bentuk?"     "cocok kata?"       "bermakna sama?"
+        │                   │                   │
+  [doc1, doc2, ...]   [doc1, doc3, ...]   [doc3, doc1, ...]
+        │                   │                   │
+        └───────────────────┼───────────────────┘
+                            ▼
+              Reciprocal Rank Fusion (RRF)
+                            │
+                            ▼
+                  Unified Ranked Results
+```
+
 **Package dependency (inward only):**
 
 ```text
@@ -72,10 +99,11 @@ cmd/gogaghe-server/main.go    ← wiring only
 internal/server/grpc.go       ← gRPC handlers + metrics instrumentation
   ↓
 internal/store/engine.go      ← CRUD, TTL, memory tracking (sync.RWMutex + atomic)
-  ├── internal/store/bm25.go       ← BM25 inverted index
-  ├── internal/store/vector.go     ← cosine similarity goroutine pool
-  ├── internal/store/hybrid.go     ← RRF merger
-  └── internal/store/eviction.go  ← min-heap cost-aware eviction
+  ├── internal/store/ngram.go      ← Character N-gram inverted index (Surface)
+  ├── internal/store/bm25.go       ← BM25 inverted index (Lexical)
+  ├── internal/store/vector.go     ← Cosine similarity goroutine pool (Semantic)
+  ├── internal/store/hybrid.go     ← Multi-stream RRF merger
+  └── internal/store/eviction.go   ← Min-heap cost-aware eviction
 
 internal/embedder/client.go   ← async HTTP worker pool → sidecar
                                   (store NEVER imports this)
@@ -95,31 +123,38 @@ internal/embedder/client.go   ← async HTTP worker pool → sidecar
 | TTL Eviction | Background `time.Ticker` goroutine scans expired keys at configurable interval |
 | Memory Tracking | Atomic counter updated on every `Set`/`Delete` — lock-free reads on hot path |
 
-### 2. BM25 Lexical Search (`internal/store/bm25.go`)
+### 2. Character N-Gram Surface Search (`internal/store/ngram.go`)
+
+- In-memory character n-gram inverted index (default trigram $n=3$).
+- Scoring: Sørensen–Dice coefficient ($2 \times |Q \cap D| / (|Q| + |D|)$) for scale-invariant surface similarity.
+- Handles typos, spelling variations, prefixes, identifiers, and technical SKUs (`kubernets` $\leftrightarrow$ `kubernetes`, `Postgres` $\leftrightarrow$ `PostgreSQL`).
+- Incremental $O(\text{tokens})$ addition and removal on `Set`/`Delete`.
+
+### 3. BM25 Lexical Search (`internal/store/bm25.go`)
 
 - Pure-Go in-memory inverted index — no external dependencies.
 - Tokenizer: lowercase + split on non-alphanumeric characters.
 - BM25 parameters: `k1 = 1.5`, `b = 0.75`.
-- `Rebuild(items)` reconstructs the full index after every write (O(N×tokens)).
+- Incremental indexing on write; full reconstruction (`Rebuild(items)`) supported.
 - `Search(query, topK)` returns `[]ScoredKey` sorted by BM25 score descending.
 
-### 3. Dense Vector Search (`internal/store/vector.go`)
+### 4. Dense Vector Search (`internal/store/vector.go`)
 
 - `CosineSimilarity(a, b []float32) float64` — safely handles zero vectors (returns `0.0`).
 - `VectorSearch(queryVec, items, topK)` parallelizes across `GOMAXPROCS` goroutine workers.
 - Items with no vector or dimension mismatch are silently skipped.
 
-### 4. Hybrid Search — Reciprocal Rank Fusion (`internal/store/hybrid.go`)
+### 5. Multi-Stream Hybrid Search — Reciprocal Rank Fusion (`internal/store/hybrid.go`)
 
 ```
-RRF score(key) = Σ  1 / (k + rank_i(key))
+RRF score(doc) = Σ  1 / (k + rank_i(doc))
 ```
 
-- Merges BM25 and vector search rank lists into a single unified result.
+- Multi-stream fusion (`RRFMulti`) merges Character N-gram, BM25, and Vector rank lists into a single unified result.
 - Default `k = 60.0` (overridable per-request via `HybridSearchRequest.rrf_k`).
-- A key appearing in only one list still accumulates a partial RRF score.
+- Items appearing across multiple representation layers compound their score; partial matches in only one stream still surface fairly.
 
-### 5. Cost-Aware Smart Eviction (`internal/store/eviction.go`)
+### 6. Cost-Aware Smart Eviction (`internal/store/eviction.go`)
 
 ```
 priority(item) = CostMs / (AccessCount + 1)
@@ -129,7 +164,7 @@ priority(item) = CostMs / (AccessCount + 1)
 - Semantics: cheap-and-unused data is evicted before expensive-and-frequently-accessed data.
 - `Evict(engine, targetBytes)` loops until `MemoryUsageBytes() <= targetBytes`.
 
-### 6. gRPC Interface (`api/proto/gogaghe/v1/gogaghe.proto`)
+### 7. gRPC Interface (`api/proto/gogaghe/v1/gogaghe.proto`)
 
 ```protobuf
 service GogagheService {
@@ -144,7 +179,7 @@ service GogagheService {
 - gRPC Server Reflection always enabled — introspect via Postman, Kreya, or `grpcurl` without the `.proto` file.
 - Generated Go code in `pkg/gogaghe/v1/` — never edit manually, regenerate with `make proto`.
 
-### 7. Async Embedding Pipeline (`internal/embedder/client.go`)
+### 8. Async Embedding Pipeline (`internal/embedder/client.go`)
 
 - `Set` with `auto_embed=true` returns `success=true` to the client immediately (< 1 ms).
 - Embedding runs asynchronously via buffered channel + goroutine worker pool.
@@ -152,7 +187,7 @@ service GogagheService {
 - Buffer-full requests are dropped silently with a `slog.Warn` — the caller is never blocked.
 - Activated via Docker Compose `--profile ai-bundle`.
 
-### 8. Observability (`internal/server/metrics.go`)
+### 9. Observability (`internal/server/metrics.go`)
 
 | Metric | Type | Label |
 | :--- | :--- | :--- |
@@ -205,11 +240,11 @@ type Item struct {
 | `vector` | `repeated float` | Embedding (may be empty if not yet generated) |
 | `access_count` | `int64` | Lifetime Get count for this key |
 
-### `HybridSearch` — Semantic + lexical ranked search
+### `HybridSearch` — Semantic + lexical + surface ranked search
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `query` | `string` | Lexical query text (drives BM25) |
+| `query` | `string` | Query text (drives Character N-gram and BM25) |
 | `query_vector` | `repeated float` | Semantic query vector (drives cosine search) |
 | `top_k` | `int32` | Maximum results to return |
 | `rrf_k` | `float` | RRF constant; defaults to `60.0` if `<= 0` |
@@ -226,6 +261,10 @@ type Item struct {
 | **Config** | `gopkg.in/yaml.v3` |
 | **Observability** | `github.com/prometheus/client_golang` |
 | **Concurrency** | `sync.RWMutex`, `sync/atomic`, goroutine pools, `container/heap` |
+| **Search — Surface** | Character N-gram Inverted Index (`internal/store/ngram.go`) |
+| **Search — Lexical** | Pure-Go BM25 Inverted Index (`internal/store/bm25.go`) |
+| **Search — Semantic** | Cosine similarity via goroutine pool (`internal/store/vector.go`) |
+| **Search — Hybrid** | Multi-stream Reciprocal Rank Fusion (`internal/store/hybrid.go`) |
 | **Containerization** | Multi-stage Dockerfile (`FROM scratch`) + Docker Compose v2 profiles |
 | **Testing** | `go test -v -race ./...` |
 
@@ -309,12 +348,15 @@ gogaghe/
 │   ├── embedder/client.go              # Async HTTP embed worker pool
 │   ├── server/
 │   │   ├── grpc.go                     # GogagheServiceServer + 5 RPC handlers
+│   │   ├── grpc_test.go                # gRPC server integration & typo tolerance tests
 │   │   └── metrics.go                  # Prometheus registry + /metrics HTTP server
 │   └── store/
 │       ├── engine.go                   # Core engine: CRUD, TTL, memory tracking
-│       ├── bm25.go                     # BM25 inverted index + tokenizer
-│       ├── vector.go                   # Cosine similarity goroutine pool
-│       ├── hybrid.go                   # RRF merger
+│       ├── ngram.go                    # Character N-gram inverted index (Surface search)
+│       ├── ngram_test.go               # N-gram typo tolerance & multi-stream RRF tests
+│       ├── bm25.go                     # BM25 inverted index + tokenizer (Lexical search)
+│       ├── vector.go                   # Cosine similarity goroutine pool (Semantic search)
+│       ├── hybrid.go                   # Multi-stream RRF merger
 │       ├── eviction.go                 # Min-heap cost-aware eviction
 │       └── engine_test.go              # All store-layer unit + race tests
 ├── pkg/gogaghe/v1/                     # ⚠ AUTO-GENERATED — run `make proto`
@@ -329,7 +371,7 @@ gogaghe/
 | Phase | Scope | Key Deliverables |
 | :--- | :--- | :--- |
 | **Phase 1** | API Contract & Core Storage | `gogaghe.proto`, `engine.go` (CRUD + TTL), unit tests `-race` |
-| **Phase 2** | Hybrid Search & Eviction | `bm25.go`, `vector.go` (goroutine pool), `hybrid.go` (RRF), `eviction.go` (min-heap) |
+| **Phase 2** | Multi-Resolution Search & Eviction | `ngram.go` (Surface), `bm25.go` (Lexical), `vector.go` (Semantic), `hybrid.go` (RRFMulti), `eviction.go` (min-heap) |
 | **Phase 3** | gRPC Server & Async Embedder | `grpc.go` (5 handlers), `main.go` (graceful shutdown), `embedder/client.go` |
 | **Phase 4** | Observability & Docker | `metrics.go`, Dockerfile, `docker-compose.yml` (profiles), Grafana dashboard |
 
@@ -345,5 +387,5 @@ gogaghe/
 - [ ] `/metrics` returns valid Prometheus text format on port `2112`.
 - [ ] Grafana dashboard at `http://localhost:3000` displays all 6 gogaghe metrics.
 - [ ] `Set` with `auto_embed=true` returns `success=true` in < 1 ms.
-- [ ] `HybridSearch` returns RRF-ranked results combining BM25 and cosine similarity.
+- [ ] `HybridSearch` returns RRF-ranked results combining Character N-gram, BM25, and Cosine similarity.
 - [ ] `Evict()` removes lowest-priority items first (cheap + unused before expensive + accessed).
