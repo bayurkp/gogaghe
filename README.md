@@ -1,43 +1,46 @@
 # gogaghe — In-Memory Hybrid Store & Vector Engine
 
-> **"Cache smarter, not harder."** — A production-grade, zero-dependency in-memory key-value store with multi-resolution hybrid search (Character N-gram + BM25 + Vector), cost-aware eviction, and async embedding pipeline. Built entirely in Go, deployable as a single Docker container.
+An in-memory key-value store with multi-resolution hybrid search (Character N-gram + BM25 + Dense Vector), cost-aware eviction, and async embedding pipeline. Pure Go, zero Cgo, single binary.
 
 ---
 
-## 📌 Executive Summary & Product Requirements Document (PRD)
+## 📌 Overview
 
-**gogaghe** is a standalone in-memory microservice engineered for **low-latency, AI-ready backend workloads**. It fills the gap between a plain Redis cache (no search) and a dedicated vector database (too heavyweight for in-process use): a single Go binary that stores, searches, and scores cached data across **three distinct language representation layers** (surface, lexical, and semantic) without any external dependencies.
+**gogaghe** is a standalone in-memory microservice for low-latency key-value storage with built-in search. It combines three search strategies — character n-gram (surface similarity), BM25 (lexical relevance), and cosine similarity (semantic matching) — fused via Reciprocal Rank Fusion into a single ranked result.
 
-This project demonstrates mastery of advanced Go concurrency, gRPC networking, in-memory data structures, multi-stream hybrid search algorithms, and industry-standard microservice architecture.
+Architecturally, gogaghe is a single Go binary that embeds all search indexes in-process. This differs from systems like Redis (which requires a separate server process) or managed vector databases like Pinecone (which require network calls to a cloud service). The trade-off is that gogaghe's data lives in a single process and is not distributed.
 
----
-
-## 🎯 Why gogaghe?
-
-Modern backend services need a smarter caching layer:
-
-| Problem | gogaghe Solution |
-| :--- | :--- |
-| Redis has no hybrid search without paid/heavy modules | Built-in pure-Go Character N-gram + BM25 + Cosine Similarity |
-| Search fails on typos, product SKUs, or technical identifiers | Character trigram index with Sørensen–Dice coefficient |
-| Dedicated vector DBs (Pinecone, Weaviate) are too heavy for in-process caching | Single lightweight binary, zero Cgo |
-| Standard caches evict LRU — expensive AI computation results get evicted too | Cost-Aware Eviction (computation cost × access frequency) |
-| Embedding generation blocks write latency | Async embedding pipeline via pluggable sidecar |
+This project covers Go concurrency patterns, gRPC service design, in-memory data structures, hybrid search algorithms, and containerized microservice deployment.
 
 ---
 
-## ⚡ Key Highlights
+## 🎯 Design Goals & Trade-offs
+
+| Goal | Approach | Trade-off |
+| :--- | :--- | :--- |
+| **Embeddable search** — no separate server process | All indexes (N-gram, BM25, vector) live in-process | Data is not distributed; limited to single-node memory |
+| **Typo-tolerant surface matching** | Character trigram index with Sørensen–Dice scoring | Additional memory for n-gram inverted index |
+| **Multi-signal ranking** | 3-stream RRF (surface + lexical + semantic) | More CPU per query than single-strategy search |
+| **Cost-aware eviction** | Priority = `CostMs / (AccessCount + 1)` | Requires callers to provide `cost_ms` on write |
+| **Non-blocking writes with embedding** | Async sidecar pipeline; `Set` returns instantly | Vectors are eventually consistent (not immediate) |
+| **Zero Cgo** | Pure Go, `CGO_ENABLED=0` | Cannot use C-optimized libraries (BLAS, FAISS, etc.) |
+
+> **Note:** Redis 8+ includes built-in full-text search (BM25) and vector search via the integrated Query Engine. gogaghe is not a Redis replacement — it targets a different architectural niche: an embeddable, in-process cache with cost-aware eviction and character-level search that can be compiled into a single static binary.
+
+---
+
+## ⚡ Key Features
 
 1. **Sub-millisecond Reads/Writes** — all data lives in RAM, no disk I/O on hot paths.
-2. **Multi-Resolution Hybrid Search** — 3-tier language hierarchy (*Surface $\to$ Lexical $\to$ Semantic*):
-   * **Character N-gram (Surface)**: Typo tolerance, prefix matching, and technical identifiers (`Postgres` $\leftrightarrow$ `PostgreSQL`, `iphon` $\leftrightarrow$ `iPhone`).
-   * **BM25 (Lexical)**: Term frequency, rarity (IDF), and document length normalization.
-   * **Dense Vector (Semantic)**: Cosine similarity capturing contextual meaning via embeddings.
-   * **Multi-Stream RRF**: Reciprocal Rank Fusion merging all three ranked candidate lists into a unified, fair final ranking without score distribution mismatch.
-3. **Cost-Aware Eviction** — items with low computation cost and low access frequency are evicted first. Expensive AI results survive longer.
-4. **Async Auto-Embedding** — `Set(auto_embed=true)` responds to the client instantly (< 1 ms). Embedding happens in the background via a buffered goroutine worker pool.
-5. **Zero Cgo** — pure Go binary, cross-compiles to any Linux/amd64 target without a C toolchain.
-6. **Full Observability** — Prometheus `/metrics` endpoint + auto-provisioned Grafana dashboard, out of the box.
+2. **Multi-Resolution Hybrid Search** — three search strategies executed in parallel:
+   * **Character N-gram (Surface)**: Trigram-based Sørensen–Dice scoring for typo tolerance and identifier matching.
+   * **BM25 (Lexical)**: Term frequency, inverse document frequency, and document length normalization.
+   * **Dense Vector (Semantic)**: Cosine similarity over embedding vectors via goroutine pool.
+   * **Multi-Stream RRF**: Reciprocal Rank Fusion merging all three ranked lists into a single result without score scale mismatch.
+3. **Cost-Aware Eviction** — eviction priority is `CostMs / (AccessCount + 1)`. Items that are cheap to recompute and infrequently accessed are evicted first.
+4. **Async Embedding Pipeline** — `Set(auto_embed=true)` returns immediately. Embedding is computed in the background via a buffered goroutine worker pool and HTTP sidecar.
+5. **Zero Cgo** — pure Go binary, `CGO_ENABLED=0`, cross-compiles to any `GOOS/GOARCH` target without a C toolchain.
+6. **Prometheus Observability** — isolated `prometheus.Registry` with 6 metrics + auto-provisioned Grafana dashboard.
 
 ---
 
