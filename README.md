@@ -174,8 +174,14 @@ service GogagheService {
   rpc Set(SetRequest)                   returns (SetResponse);
   rpc Get(GetRequest)                   returns (GetResponse);
   rpc Delete(DeleteRequest)             returns (DeleteResponse);
-  rpc VectorSearch(VectorSearchRequest) returns (VectorSearchResponse);
-  rpc HybridSearch(HybridSearchRequest) returns (HybridSearchResponse);
+
+  // Dedicated single-strategy search RPCs:
+  rpc SurfaceSearch(SurfaceSearchRequest) returns (SurfaceSearchResponse); // Character N-gram (Trigram / Typo-tolerant)
+  rpc LexicalSearch(LexicalSearchRequest) returns (LexicalSearchResponse); // BM25 Inverted Index (Keyword / TF-IDF)
+  rpc VectorSearch(VectorSearchRequest)   returns (VectorSearchResponse);  // Dense Vector (Cosine Similarity)
+
+  // Multi-strategy fused hybrid search RPC:
+  rpc HybridSearch(HybridSearchRequest)   returns (HybridSearchResponse);  // RRF fusion across selected or all strategies
 }
 ```
 
@@ -243,14 +249,36 @@ type Item struct {
 | `vector` | `repeated float` | Embedding (may be empty if not yet generated) |
 | `access_count` | `int64` | Lifetime Get count for this key |
 
-### `HybridSearch` — Semantic + lexical + surface ranked search
+### `SurfaceSearch` — Character N-gram (Trigram) surface similarity search
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `query` | `string` | Query text (drives Character N-gram and BM25) |
-| `query_vector` | `repeated float` | Semantic query vector (drives cosine search) |
+| `query` | `string` | Query text (matches typos, prefixes, codes, SKUs via Sørensen–Dice) |
+| `top_k` | `int32` | Maximum results to return |
+
+### `LexicalSearch` — BM25 keyword relevance search
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `query` | `string` | Lexical query text (scored via BM25 inverted index) |
+| `top_k` | `int32` | Maximum results to return |
+
+### `VectorSearch` — Dense vector cosine similarity search
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `query_vector` | `repeated float` | Semantic query vector |
+| `top_k` | `int32` | Maximum results to return |
+
+### `HybridSearch` — Multi-strategy ranked fusion search
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `query` | `string` | Query text (drives Surface and/or Lexical strategies) |
+| `query_vector` | `repeated float` | Semantic query vector (drives Semantic strategy) |
 | `top_k` | `int32` | Maximum results to return |
 | `rrf_k` | `float` | RRF constant; defaults to `60.0` if `<= 0` |
+| `strategies` | `repeated SearchStrategy` | Optional: choose exact strategies to fuse (`SURFACE`, `LEXICAL`, `SEMANTIC`). Auto-detects if omitted |
 
 ---
 

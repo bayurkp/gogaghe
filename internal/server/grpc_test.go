@@ -143,32 +143,104 @@ func TestGogagheServer_HybridSearch(t *testing.T) {
 	}
 }
 
-func TestGogagheServer_HybridSearch_TypoTolerance(t *testing.T) {
+func TestGogagheServer_SurfaceSearch(t *testing.T) {
 	srv, _ := newTestServer(t, 1024*1024)
 	ctx := context.Background()
 
 	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
-		Key:   "doc-pg",
-		Value: []byte("PostgreSQL high availability cluster"),
+		Key:   "doc-iphone",
+		Value: []byte("Apple iPhone 15 Pro Max"),
 	})
 	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
-		Key:   "doc-redis",
-		Value: []byte("Redis cache memory"),
+		Key:   "doc-samsung",
+		Value: []byte("Samsung Galaxy S24 Ultra"),
 	})
 
-	// Search with typo query: "Postgres" (matches PostgreSQL via character n-gram)
-	res, err := srv.HybridSearch(ctx, &gogaghev1.HybridSearchRequest{
-		Query: "Postgres",
+	// Search with typo query: "iphon"
+	res, err := srv.SurfaceSearch(ctx, &gogaghev1.SurfaceSearchRequest{
+		Query: "iphon",
 		TopK:  2,
 	})
 	if err != nil {
-		t.Fatalf("HybridSearch failed: %v", err)
+		t.Fatalf("SurfaceSearch failed: %v", err)
 	}
-	if len(res.Results) == 0 {
-		t.Fatal("expected at least 1 result for typo search")
+	if len(res.Results) == 0 || res.Results[0].Key != "doc-iphone" {
+		t.Fatalf("expected doc-iphone as top surface search result, got: %v", res.Results)
 	}
-	if res.Results[0].Key != "doc-pg" {
-		t.Errorf("expected doc-pg as top result, got %s", res.Results[0].Key)
+}
+
+func TestGogagheServer_LexicalSearch(t *testing.T) {
+	srv, _ := newTestServer(t, 1024*1024)
+	ctx := context.Background()
+
+	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
+		Key:   "doc1",
+		Value: []byte("distributed database consensus algorithm raft"),
+	})
+	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
+		Key:   "doc2",
+		Value: []byte("in-memory cache eviction policy lru"),
+	})
+
+	res, err := srv.LexicalSearch(ctx, &gogaghev1.LexicalSearchRequest{
+		Query: "consensus raft",
+		TopK:  1,
+	})
+	if err != nil {
+		t.Fatalf("LexicalSearch failed: %v", err)
+	}
+	if len(res.Results) == 0 || res.Results[0].Key != "doc1" {
+		t.Fatalf("expected doc1 as top lexical search result, got: %v", res.Results)
+	}
+}
+
+func TestGogagheServer_HybridSearch_StrategySelection(t *testing.T) {
+	srv, _ := newTestServer(t, 1024*1024)
+	ctx := context.Background()
+
+	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
+		Key:    "doc-pg",
+		Value:  []byte("PostgreSQL database setup"),
+		Vector: []float32{1, 0, 0},
+	})
+	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
+		Key:    "doc-redis",
+		Value:  []byte("Redis in-memory caching"),
+		Vector: []float32{0, 1, 0},
+	})
+
+	// 1. Explicitly select SURFACE + SEMANTIC (Skip Lexical)
+	res1, err := srv.HybridSearch(ctx, &gogaghev1.HybridSearchRequest{
+		Query:       "Postgres", // typo / surface match for PostgreSQL
+		QueryVector: []float32{0.9, 0.1, 0},
+		TopK:        2,
+		Strategies: []gogaghev1.SearchStrategy{
+			gogaghev1.SearchStrategy_SEARCH_STRATEGY_SURFACE,
+			gogaghev1.SearchStrategy_SEARCH_STRATEGY_SEMANTIC,
+		},
+	})
+	if err != nil {
+		t.Fatalf("HybridSearch with strategies failed: %v", err)
+	}
+	if len(res1.Results) == 0 || res1.Results[0].Key != "doc-pg" {
+		t.Errorf("expected doc-pg as top result for Surface+Semantic, got: %v", res1.Results)
+	}
+
+	// 2. Explicitly select only LEXICAL (BM25)
+	res2, err := srv.HybridSearch(ctx, &gogaghev1.HybridSearchRequest{
+		Query:       "Postgres", // BM25 exact match won't match "PostgreSQL"
+		QueryVector: []float32{0.9, 0.1, 0}, // provided but ignored because SEMANTIC is not in strategies
+		TopK:        2,
+		Strategies: []gogaghev1.SearchStrategy{
+			gogaghev1.SearchStrategy_SEARCH_STRATEGY_LEXICAL,
+		},
+	})
+	if err != nil {
+		t.Fatalf("HybridSearch with lexical only failed: %v", err)
+	}
+	// "Postgres" token doesn't exist in BM25 ("postgresql" does) -> 0 results
+	if len(res2.Results) != 0 {
+		t.Errorf("expected 0 results for exact lexical search on 'Postgres', got: %v", res2.Results)
 	}
 }
 

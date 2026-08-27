@@ -21,11 +21,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	GogagheService_Set_FullMethodName          = "/gogaghe.v1.GogagheService/Set"
-	GogagheService_Get_FullMethodName          = "/gogaghe.v1.GogagheService/Get"
-	GogagheService_Delete_FullMethodName       = "/gogaghe.v1.GogagheService/Delete"
-	GogagheService_VectorSearch_FullMethodName = "/gogaghe.v1.GogagheService/VectorSearch"
-	GogagheService_HybridSearch_FullMethodName = "/gogaghe.v1.GogagheService/HybridSearch"
+	GogagheService_Set_FullMethodName           = "/gogaghe.v1.GogagheService/Set"
+	GogagheService_Get_FullMethodName           = "/gogaghe.v1.GogagheService/Get"
+	GogagheService_Delete_FullMethodName        = "/gogaghe.v1.GogagheService/Delete"
+	GogagheService_SurfaceSearch_FullMethodName = "/gogaghe.v1.GogagheService/SurfaceSearch"
+	GogagheService_LexicalSearch_FullMethodName = "/gogaghe.v1.GogagheService/LexicalSearch"
+	GogagheService_VectorSearch_FullMethodName  = "/gogaghe.v1.GogagheService/VectorSearch"
+	GogagheService_HybridSearch_FullMethodName  = "/gogaghe.v1.GogagheService/HybridSearch"
 )
 
 // GogagheServiceClient is the client API for GogagheService service.
@@ -35,7 +37,11 @@ type GogagheServiceClient interface {
 	Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*SetResponse, error)
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
+	// Single-strategy dedicated search RPCs:
+	SurfaceSearch(ctx context.Context, in *SurfaceSearchRequest, opts ...grpc.CallOption) (*SurfaceSearchResponse, error)
+	LexicalSearch(ctx context.Context, in *LexicalSearchRequest, opts ...grpc.CallOption) (*LexicalSearchResponse, error)
 	VectorSearch(ctx context.Context, in *VectorSearchRequest, opts ...grpc.CallOption) (*VectorSearchResponse, error)
+	// Multi-strategy fused hybrid search RPC:
 	HybridSearch(ctx context.Context, in *HybridSearchRequest, opts ...grpc.CallOption) (*HybridSearchResponse, error)
 }
 
@@ -77,6 +83,26 @@ func (c *gogagheServiceClient) Delete(ctx context.Context, in *DeleteRequest, op
 	return out, nil
 }
 
+func (c *gogagheServiceClient) SurfaceSearch(ctx context.Context, in *SurfaceSearchRequest, opts ...grpc.CallOption) (*SurfaceSearchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SurfaceSearchResponse)
+	err := c.cc.Invoke(ctx, GogagheService_SurfaceSearch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gogagheServiceClient) LexicalSearch(ctx context.Context, in *LexicalSearchRequest, opts ...grpc.CallOption) (*LexicalSearchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LexicalSearchResponse)
+	err := c.cc.Invoke(ctx, GogagheService_LexicalSearch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *gogagheServiceClient) VectorSearch(ctx context.Context, in *VectorSearchRequest, opts ...grpc.CallOption) (*VectorSearchResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(VectorSearchResponse)
@@ -104,7 +130,11 @@ type GogagheServiceServer interface {
 	Set(context.Context, *SetRequest) (*SetResponse, error)
 	Get(context.Context, *GetRequest) (*GetResponse, error)
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
+	// Single-strategy dedicated search RPCs:
+	SurfaceSearch(context.Context, *SurfaceSearchRequest) (*SurfaceSearchResponse, error)
+	LexicalSearch(context.Context, *LexicalSearchRequest) (*LexicalSearchResponse, error)
 	VectorSearch(context.Context, *VectorSearchRequest) (*VectorSearchResponse, error)
+	// Multi-strategy fused hybrid search RPC:
 	HybridSearch(context.Context, *HybridSearchRequest) (*HybridSearchResponse, error)
 }
 
@@ -123,6 +153,12 @@ func (UnimplementedGogagheServiceServer) Get(context.Context, *GetRequest) (*Get
 }
 func (UnimplementedGogagheServiceServer) Delete(context.Context, *DeleteRequest) (*DeleteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedGogagheServiceServer) SurfaceSearch(context.Context, *SurfaceSearchRequest) (*SurfaceSearchResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SurfaceSearch not implemented")
+}
+func (UnimplementedGogagheServiceServer) LexicalSearch(context.Context, *LexicalSearchRequest) (*LexicalSearchResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LexicalSearch not implemented")
 }
 func (UnimplementedGogagheServiceServer) VectorSearch(context.Context, *VectorSearchRequest) (*VectorSearchResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method VectorSearch not implemented")
@@ -204,6 +240,42 @@ func _GogagheService_Delete_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GogagheService_SurfaceSearch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SurfaceSearchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GogagheServiceServer).SurfaceSearch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GogagheService_SurfaceSearch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GogagheServiceServer).SurfaceSearch(ctx, req.(*SurfaceSearchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GogagheService_LexicalSearch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LexicalSearchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GogagheServiceServer).LexicalSearch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GogagheService_LexicalSearch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GogagheServiceServer).LexicalSearch(ctx, req.(*LexicalSearchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _GogagheService_VectorSearch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(VectorSearchRequest)
 	if err := dec(in); err != nil {
@@ -258,6 +330,14 @@ var GogagheService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Delete",
 			Handler:    _GogagheService_Delete_Handler,
+		},
+		{
+			MethodName: "SurfaceSearch",
+			Handler:    _GogagheService_SurfaceSearch_Handler,
+		},
+		{
+			MethodName: "LexicalSearch",
+			Handler:    _GogagheService_LexicalSearch_Handler,
 		},
 		{
 			MethodName: "VectorSearch",

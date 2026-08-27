@@ -9,18 +9,32 @@ service GogagheService {
   rpc Set(SetRequest) returns (SetResponse);
   rpc Get(GetRequest) returns (GetResponse);
   rpc Delete(DeleteRequest) returns (DeleteResponse);
-  rpc VectorSearch(VectorSearchRequest) returns (VectorSearchResponse);
-  rpc HybridSearch(HybridSearchRequest) returns (HybridSearchResponse);
+
+  // Single-strategy dedicated search RPCs:
+  rpc SurfaceSearch(SurfaceSearchRequest) returns (SurfaceSearchResponse); // Character N-gram (Trigram / Typo-tolerant)
+  rpc LexicalSearch(LexicalSearchRequest) returns (LexicalSearchResponse); // BM25 Inverted Index (Keyword / TF-IDF)
+  rpc VectorSearch(VectorSearchRequest)   returns (VectorSearchResponse);  // Dense Vector (Cosine Similarity)
+
+  // Multi-strategy fused hybrid search RPC:
+  rpc HybridSearch(HybridSearchRequest)   returns (HybridSearchResponse);  // RRF fusion across selected or all strategies
+}
+
+// SearchStrategy specifies the matching strategy to use in search queries.
+enum SearchStrategy {
+  SEARCH_STRATEGY_UNSPECIFIED = 0; // Automatically enables all strategies matching provided query/vector fields
+  SEARCH_STRATEGY_SURFACE     = 1; // Character N-gram (Surface / Typo tolerance / SKU / Code)
+  SEARCH_STRATEGY_LEXICAL     = 2; // BM25 Inverted Index (Lexical / Exact keyword / IDF)
+  SEARCH_STRATEGY_SEMANTIC    = 3; // Dense Vector Cosine Similarity (Semantic meaning)
 }
 
 // --- Set ---
 message SetRequest {
-  string key        = 1;
-  bytes  value      = 2;
-  int64  ttl_ms     = 3;  // 0 = no expiry
-  int64  cost_ms    = 4;  // ComputationCostMs for eviction scoring
-  repeated float vector = 5;  // optional pre-computed vector
-  bool   auto_embed = 6;  // trigger async embedding from value
+  string         key        = 1;
+  bytes          value      = 2;
+  int64          ttl_ms     = 3; // 0 = no expiry
+  int64          cost_ms    = 4; // ComputationCostMs for eviction scoring
+  repeated float vector     = 5; // optional pre-computed vector
+  bool           auto_embed = 6; // trigger async embedding from value
 }
 
 message SetResponse {
@@ -33,10 +47,10 @@ message GetRequest {
 }
 
 message GetResponse {
-  bool   found         = 1;
-  bytes  value         = 2;
-  repeated float vector = 3;
-  int64  access_count  = 4;
+  bool           found        = 1;
+  bytes          value        = 2;
+  repeated float vector       = 3;
+  int64          access_count = 4;
 }
 
 // --- Delete ---
@@ -48,7 +62,27 @@ message DeleteResponse {
   bool deleted = 1;
 }
 
-// --- VectorSearch ---
+// --- SurfaceSearch (Character N-gram) ---
+message SurfaceSearchRequest {
+  string query = 1;
+  int32  top_k = 2;
+}
+
+message SurfaceSearchResponse {
+  repeated SearchResult results = 1;
+}
+
+// --- LexicalSearch (BM25) ---
+message LexicalSearchRequest {
+  string query = 1;
+  int32  top_k = 2;
+}
+
+message LexicalSearchResponse {
+  repeated SearchResult results = 1;
+}
+
+// --- VectorSearch (Dense Vector Cosine) ---
 message VectorSearchRequest {
   repeated float query_vector = 1;
   int32          top_k        = 2;
@@ -58,12 +92,13 @@ message VectorSearchResponse {
   repeated SearchResult results = 1;
 }
 
-// --- HybridSearch ---
+// --- HybridSearch (RRF Fusion) ---
 message HybridSearchRequest {
-  string         query        = 1;  // lexical query text
-  repeated float query_vector = 2;  // semantic query vector
-  int32          top_k        = 3;
-  float          rrf_k        = 4;  // RRF constant, default 60.0
+  string                  query      = 1; // query text for surface/lexical
+  repeated float          query_vector = 2; // semantic query vector
+  int32                   top_k      = 3;
+  float                   rrf_k      = 4; // RRF constant, default 60.0
+  repeated SearchStrategy strategies = 5; // Optional: specify exact strategies to fuse (if empty, auto-detects from provided fields)
 }
 
 message HybridSearchResponse {

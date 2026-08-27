@@ -115,6 +115,28 @@ func (s *GogagheServer) Delete(ctx context.Context, req *gogaghev1.DeleteRequest
 	return &gogaghev1.DeleteResponse{Deleted: deleted}, nil
 }
 
+func (s *GogagheServer) SurfaceSearch(ctx context.Context, req *gogaghev1.SurfaceSearchRequest) (*gogaghev1.SurfaceSearchResponse, error) {
+	timer := prometheusTimer(s.metrics.OperationDuration.WithLabelValues("surface_search"))
+	defer timer()
+
+	var results []store.ScoredKey
+	if s.ngram != nil && len(req.Query) > 0 {
+		results = s.ngram.Search(req.Query, int(req.TopK))
+	}
+	return &gogaghev1.SurfaceSearchResponse{Results: toProtoResults(results, s.engine)}, nil
+}
+
+func (s *GogagheServer) LexicalSearch(ctx context.Context, req *gogaghev1.LexicalSearchRequest) (*gogaghev1.LexicalSearchResponse, error) {
+	timer := prometheusTimer(s.metrics.OperationDuration.WithLabelValues("lexical_search"))
+	defer timer()
+
+	var results []store.ScoredKey
+	if s.bm25 != nil && len(req.Query) > 0 {
+		results = s.bm25.Search(req.Query, int(req.TopK))
+	}
+	return &gogaghev1.LexicalSearchResponse{Results: toProtoResults(results, s.engine)}, nil
+}
+
 func (s *GogagheServer) VectorSearch(ctx context.Context, req *gogaghev1.VectorSearchRequest) (*gogaghev1.VectorSearchResponse, error) {
 	timer := prometheusTimer(s.metrics.OperationDuration.WithLabelValues("vector_search"))
 	defer timer()
@@ -134,24 +156,55 @@ func (s *GogagheServer) HybridSearch(ctx context.Context, req *gogaghev1.HybridS
 		k = 60.0
 	}
 
-	// Multi-resolution streams: Surface (N-gram) + Lexical (BM25) + Semantic (Dense Vector)
+	useSurface := false
+	useLexical := false
+	useSemantic := false
+
+	if len(req.Strategies) == 0 {
+		// Auto-detect based on provided fields (default backward compatible)
+		useSurface = s.ngram != nil && len(req.Query) > 0
+		useLexical = s.bm25 != nil && len(req.Query) > 0
+		useSemantic = len(req.QueryVector) > 0
+	} else {
+		for _, st := range req.Strategies {
+			switch st {
+			case gogaghev1.SearchStrategy_SEARCH_STRATEGY_SURFACE:
+				useSurface = s.ngram != nil && len(req.Query) > 0
+			case gogaghev1.SearchStrategy_SEARCH_STRATEGY_LEXICAL:
+				useLexical = s.bm25 != nil && len(req.Query) > 0
+			case gogaghev1.SearchStrategy_SEARCH_STRATEGY_SEMANTIC:
+				useSemantic = len(req.QueryVector) > 0
+			case gogaghev1.SearchStrategy_SEARCH_STRATEGY_UNSPECIFIED:
+				if s.ngram != nil && len(req.Query) > 0 {
+					useSurface = true
+				}
+				if s.bm25 != nil && len(req.Query) > 0 {
+					useLexical = true
+				}
+				if len(req.QueryVector) > 0 {
+					useSemantic = true
+				}
+			}
+		}
+	}
+
 	var rankLists [][]store.ScoredKey
 
-	if s.ngram != nil && len(req.Query) > 0 {
+	if useSurface {
 		ngramResults := s.ngram.Search(req.Query, topK*2)
 		if len(ngramResults) > 0 {
 			rankLists = append(rankLists, ngramResults)
 		}
 	}
 
-	if s.bm25 != nil && len(req.Query) > 0 {
+	if useLexical {
 		bm25Results := s.bm25.Search(req.Query, topK*2)
 		if len(bm25Results) > 0 {
 			rankLists = append(rankLists, bm25Results)
 		}
 	}
 
-	if len(req.QueryVector) > 0 {
+	if useSemantic {
 		vecResults := store.VectorSearch(req.QueryVector, items, topK*2)
 		if len(vecResults) > 0 {
 			rankLists = append(rankLists, vecResults)
