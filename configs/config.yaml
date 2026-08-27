@@ -1,16 +1,30 @@
 # configs/config.yaml
+# Production-ready configuration for gogaghe in-memory store & vector engine.
+
 server:
-  grpc_port: 50051
-  metrics_port: 2112
+  grpc_port: 50051       # Port for gRPC service and server reflection
+  metrics_port: 2112     # Port for Prometheus HTTP /metrics endpoint
 
 store:
-  max_memory_bytes: 134217728  # 128 MiB
-  ttl_check_interval_seconds: 30
-  eviction_threshold_ratio: 0.90  # trigger eviction at 90% of max_memory_bytes
+  max_memory_bytes: 134217728        # 128 MiB in-memory cache allocation
+  ttl_check_interval_seconds: 30     # Background TTL eviction scan interval
+  eviction_threshold_ratio: 0.90     # Threshold ratio to trigger cost-aware eviction
+
+search:
+  surface:
+    enabled: true        # Enable character n-gram surface search
+    ngram_size: 3        # Default character n-gram size (trigram)
+  lexical:
+    enabled: true        # Enable BM25 inverted index lexical search
+    bm25_k1: 1.5         # BM25 term frequency saturation parameter
+    bm25_b: 0.75         # BM25 document length normalization parameter
+  hybrid:
+    default_rrf_k: 60.0  # Default Reciprocal Rank Fusion smoothing constant
 
 embedder:
-  enabled: false
-  url: "http://localhost:8000/embed"
-  timeout_seconds: 5
-  worker_pool_size: 4
-  channel_buffer_size: 256
+  enabled: false                      # Set to true when running with --profile ai-bundle
+  url: "http://localhost:8000/embed"  # Sidecar HTTP inference endpoint
+  timeout_seconds: 5                  # HTTP request timeout per embedding call
+  worker_pool_size: 4                 # Background worker pool concurrency
+  channel_buffer_size: 256            # Non-blocking async queue buffer capacity
+  auto_embed_queries: true            # Auto-embed text queries on VectorSearch / HybridSearch

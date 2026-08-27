@@ -1,0 +1,82 @@
+# configs/config.example.yaml
+# Example configuration template for gogaghe In-Memory Store & Vector Engine.
+# Copy this file to `configs/config.yaml` or override fields via environment variables.
+
+# ==============================================================================
+# 1. Server Configuration
+# ==============================================================================
+server:
+  # Port for the gRPC service (Protobuf RPC handlers & gRPC Server Reflection)
+  # Env override: GOGAGHE_SERVER_GRPC_PORT
+  grpc_port: 50051
+
+  # Port for the Prometheus /metrics HTTP scrape endpoint
+  # Env override: GOGAGHE_SERVER_METRICS_PORT
+  metrics_port: 2112
+
+# ==============================================================================
+# 2. In-Memory Store Engine Configuration
+# ==============================================================================
+store:
+  # Maximum memory allocated for key-value items, vectors, and metadata in bytes
+  # 134217728 = 128 MiB, 268435456 = 256 MiB, 1073741824 = 1 GiB
+  # Env override: GOGAGHE_STORE_MAX_MEMORY_BYTES
+  max_memory_bytes: 134217728
+
+  # Interval (in seconds) for background goroutine to scan and purge expired TTL keys
+  ttl_check_interval_seconds: 30
+
+  # Memory usage ratio threshold (between 0.0 and 1.0) to trigger cost-aware min-heap eviction
+  eviction_threshold_ratio: 0.90
+
+# ==============================================================================
+# 3. Multi-Resolution Search Engine Hyperparameters
+# ==============================================================================
+search:
+  # --- Surface Strategy (Character N-gram) ---
+  surface:
+    # Enable character n-gram inverted index for typo tolerance, morphology, and SKUs
+    enabled: true
+    # Character n-gram slice size (default: 3 for trigram)
+    # Env override: GOGAGHE_SEARCH_SURFACE_NGRAM_SIZE
+    ngram_size: 3
+
+  # --- Lexical Strategy (BM25 Inverted Index) ---
+  lexical:
+    # Enable token-level BM25 inverted index for exact keyword matching and TF-IDF scoring
+    enabled: true
+    # BM25 term frequency saturation parameter (standard: 1.2 - 2.0)
+    bm25_k1: 1.5
+    # BM25 document length normalization parameter (standard: 0.75)
+    bm25_b: 0.75
+
+  # --- Hybrid Strategy (Reciprocal Rank Fusion) ---
+  hybrid:
+    # Default RRF smoothing constant k (used when request rrf_k <= 0)
+    # Env override: GOGAGHE_SEARCH_HYBRID_DEFAULT_RRF_K
+    default_rrf_k: 60.0
+
+# ==============================================================================
+# 4. Async Embedding Sidecar Configuration
+# ==============================================================================
+embedder:
+  # Enable HTTP embedding sidecar (Docker Compose profile: ai-bundle)
+  # Env override: GOGAGHE_EMBEDDER_ENABLED
+  enabled: false
+
+  # HTTP endpoint URL of the sidecar embedder service
+  # Env override: GOGAGHE_EMBEDDER_URL
+  url: "http://localhost:8000/embed"
+
+  # HTTP timeout in seconds for each embedding request
+  timeout_seconds: 5
+
+  # Number of background worker goroutines processing async embedding queue
+  worker_pool_size: 4
+
+  # Buffer capacity for async job queue (excess items are dropped gracefully to avoid blocking)
+  channel_buffer_size: 256
+
+  # If true, text queries in VectorSearch / HybridSearch are automatically embedded
+  # on-the-fly when query_vector is omitted
+  auto_embed_queries: true

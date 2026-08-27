@@ -267,17 +267,18 @@ type Item struct {
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `query_vector` | `repeated float` | Semantic query vector |
+| `query_vector` | `repeated float` | Semantic query vector (optional if `query` is provided) |
+| `query` | `string` | Plain query text (auto-embedded on-the-fly via sidecar if `query_vector` is omitted) |
 | `top_k` | `int32` | Maximum results to return |
 
 ### `HybridSearch` — Multi-strategy ranked fusion search
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `query` | `string` | Query text (drives Surface and/or Lexical strategies) |
-| `query_vector` | `repeated float` | Semantic query vector (drives Semantic strategy) |
+| `query` | `string` | Query text (drives Surface, Lexical, and auto-embeds Semantic strategy) |
+| `query_vector` | `repeated float` | Pre-computed semantic query vector (optional) |
 | `top_k` | `int32` | Maximum results to return |
-| `rrf_k` | `float` | RRF constant; defaults to `60.0` if `<= 0` |
+| `rrf_k` | `float` | RRF constant; defaults to `search.hybrid.default_rrf_k` (60.0) if `<= 0` |
 | `strategies` | `repeated SearchStrategy` | Optional: choose exact strategies to fuse (`SURFACE`, `LEXICAL`, `SEMANTIC`). Auto-detects if omitted |
 
 ---

@@ -3,9 +3,11 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"runtime"
 	"time"
 
+	"github.com/bayurkp/gogaghe/internal/config"
 	"github.com/bayurkp/gogaghe/internal/embedder"
 	"github.com/bayurkp/gogaghe/internal/store"
 	gogaghev1 "github.com/bayurkp/gogaghe/pkg/gogaghe/v1"
@@ -16,14 +18,15 @@ import (
 // GogagheServer implements the GogagheServiceServer gRPC interface.
 type GogagheServer struct {
 	gogaghev1.UnimplementedGogagheServiceServer
-	engine   *store.Engine
-	bm25     *store.BM25Index
-	ngram    *store.NgramIndex
-	metrics  *Metrics
-	embedder *embedder.Client
+	engine    *store.Engine
+	bm25      *store.BM25Index
+	ngram     *store.NgramIndex
+	metrics   *Metrics
+	embedder  *embedder.Client
+	searchCfg config.SearchConfig
 }
 
-// NewGogagheServer creates a GogagheServer wired to the given subsystems.
+// NewGogagheServer creates a GogagheServer wired to the given subsystems with default search config.
 func NewGogagheServer(
 	engine *store.Engine,
 	bm25 *store.BM25Index,
@@ -31,12 +34,32 @@ func NewGogagheServer(
 	metrics *Metrics,
 	emb *embedder.Client,
 ) *GogagheServer {
+	return NewGogagheServerWithConfig(engine, bm25, ngram, metrics, emb, config.SearchConfig{
+		Surface: config.SurfaceConfig{Enabled: true, NgramSize: 3},
+		Lexical: config.LexicalConfig{Enabled: true, BM25K1: 1.5, BM25B: 0.75},
+		Hybrid:  config.HybridConfig{DefaultRRFK: 60.0},
+	})
+}
+
+// NewGogagheServerWithConfig creates a GogagheServer wired to the given subsystems and custom search tuning.
+func NewGogagheServerWithConfig(
+	engine *store.Engine,
+	bm25 *store.BM25Index,
+	ngram *store.NgramIndex,
+	metrics *Metrics,
+	emb *embedder.Client,
+	searchCfg config.SearchConfig,
+) *GogagheServer {
+	if searchCfg.Hybrid.DefaultRRFK <= 0 {
+		searchCfg.Hybrid.DefaultRRFK = 60.0
+	}
 	return &GogagheServer{
-		engine:   engine,
-		bm25:     bm25,
-		ngram:    ngram,
-		metrics:  metrics,
-		embedder: emb,
+		engine:    engine,
+		bm25:      bm25,
+		ngram:     ngram,
+		metrics:   metrics,
+		embedder:  emb,
+		searchCfg: searchCfg,
 	}
 }
 
@@ -141,7 +164,18 @@ func (s *GogagheServer) VectorSearch(ctx context.Context, req *gogaghev1.VectorS
 	timer := prometheusTimer(s.metrics.OperationDuration.WithLabelValues("vector_search"))
 	defer timer()
 
-	results := store.VectorSearch(req.QueryVector, s.engine.Items(), int(req.TopK))
+	queryVec := req.QueryVector
+	// Native query auto-embedding if query_vector is omitted but query text is provided
+	if len(queryVec) == 0 && len(req.Query) > 0 && s.embedder != nil {
+		vec, err := s.embedder.Embed(ctx, req.Query)
+		if err != nil {
+			slog.Warn("vector_search: auto-embed query failed", "query", req.Query, "err", err)
+		} else {
+			queryVec = vec
+		}
+	}
+
+	results := store.VectorSearch(queryVec, s.engine.Items(), int(req.TopK))
 	return &gogaghev1.VectorSearchResponse{Results: toProtoResults(results, s.engine)}, nil
 }
 
@@ -153,9 +187,13 @@ func (s *GogagheServer) HybridSearch(ctx context.Context, req *gogaghev1.HybridS
 	topK := int(req.TopK)
 	k := float64(req.RrfK)
 	if k <= 0 {
+		k = s.searchCfg.Hybrid.DefaultRRFK
+	}
+	if k <= 0 {
 		k = 60.0
 	}
 
+	queryVec := req.QueryVector
 	useSurface := false
 	useLexical := false
 	useSemantic := false
@@ -164,7 +202,7 @@ func (s *GogagheServer) HybridSearch(ctx context.Context, req *gogaghev1.HybridS
 		// Auto-detect based on provided fields (default backward compatible)
 		useSurface = s.ngram != nil && len(req.Query) > 0
 		useLexical = s.bm25 != nil && len(req.Query) > 0
-		useSemantic = len(req.QueryVector) > 0
+		useSemantic = len(queryVec) > 0 || (s.embedder != nil && len(req.Query) > 0)
 	} else {
 		for _, st := range req.Strategies {
 			switch st {
@@ -173,7 +211,7 @@ func (s *GogagheServer) HybridSearch(ctx context.Context, req *gogaghev1.HybridS
 			case gogaghev1.SearchStrategy_SEARCH_STRATEGY_LEXICAL:
 				useLexical = s.bm25 != nil && len(req.Query) > 0
 			case gogaghev1.SearchStrategy_SEARCH_STRATEGY_SEMANTIC:
-				useSemantic = len(req.QueryVector) > 0
+				useSemantic = true
 			case gogaghev1.SearchStrategy_SEARCH_STRATEGY_UNSPECIFIED:
 				if s.ngram != nil && len(req.Query) > 0 {
 					useSurface = true
@@ -181,10 +219,20 @@ func (s *GogagheServer) HybridSearch(ctx context.Context, req *gogaghev1.HybridS
 				if s.bm25 != nil && len(req.Query) > 0 {
 					useLexical = true
 				}
-				if len(req.QueryVector) > 0 {
+				if len(queryVec) > 0 || (s.embedder != nil && len(req.Query) > 0) {
 					useSemantic = true
 				}
 			}
+		}
+	}
+
+	// Auto-embed query text for semantic stream if query_vector is omitted
+	if useSemantic && len(queryVec) == 0 && len(req.Query) > 0 && s.embedder != nil {
+		vec, err := s.embedder.Embed(ctx, req.Query)
+		if err != nil {
+			slog.Warn("hybrid_search: auto-embed query failed", "query", req.Query, "err", err)
+		} else {
+			queryVec = vec
 		}
 	}
 
@@ -204,8 +252,8 @@ func (s *GogagheServer) HybridSearch(ctx context.Context, req *gogaghev1.HybridS
 		}
 	}
 
-	if useSemantic {
-		vecResults := store.VectorSearch(req.QueryVector, items, topK*2)
+	if useSemantic && len(queryVec) > 0 {
+		vecResults := store.VectorSearch(queryVec, items, topK*2)
 		if len(vecResults) > 0 {
 			rankLists = append(rankLists, vecResults)
 		}

@@ -3,9 +3,14 @@ package server_test
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/bayurkp/gogaghe/internal/config"
+	"github.com/bayurkp/gogaghe/internal/embedder"
 	"github.com/bayurkp/gogaghe/internal/server"
 	"github.com/bayurkp/gogaghe/internal/store"
 	gogaghev1 "github.com/bayurkp/gogaghe/pkg/gogaghe/v1"
@@ -258,5 +263,82 @@ func TestGogagheServer_ResourceExhausted(t *testing.T) {
 	st, ok := status.FromError(err)
 	if !ok || st.Code() != codes.ResourceExhausted {
 		t.Errorf("expected codes.ResourceExhausted, got %v", err)
+	}
+}
+
+func TestGogagheServer_NativeQueryAutoEmbedding(t *testing.T) {
+	// Mock HTTP embedding sidecar
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Text string `json:"text"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&payload)
+
+		var vec []float32
+		if payload.Text == "sepatu putih" {
+			vec = []float32{1.0, 0.0, 0.0} // aligned with doc1
+		} else {
+			vec = []float32{0.0, 1.0, 0.0}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"vector": vec})
+	}))
+	defer ts.Close()
+
+	embCfg := config.EmbedderConfig{
+		Enabled:        true,
+		URL:            ts.URL,
+		TimeoutSeconds: 2,
+	}
+	emb := embedder.NewClient(embCfg)
+	defer emb.Stop()
+
+	e := store.NewEngine(1024*1024, 100*time.Millisecond)
+	t.Cleanup(e.Stop)
+	bm25 := store.NewBM25Index()
+	ngram := store.NewNgramIndex(3)
+	metrics := server.NewMetrics()
+	srv := server.NewGogagheServer(e, bm25, ngram, metrics, emb)
+
+	ctx := context.Background()
+
+	// Seed items with vectors
+	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
+		Key:    "doc1",
+		Value:  []byte("Sneakers Putih Kasual Pria"),
+		Vector: []float32{1.0, 0.0, 0.0},
+	})
+	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
+		Key:    "doc2",
+		Value:  []byte("Sandal Jepit Hitam"),
+		Vector: []float32{0.0, 1.0, 0.0},
+	})
+
+	// 1. VectorSearch using plain query text (without query_vector)
+	vecRes, err := srv.VectorSearch(ctx, &gogaghev1.VectorSearchRequest{
+		Query: "sepatu putih", // plain text, will be auto-embedded by gogaghe
+		TopK:  1,
+	})
+	if err != nil {
+		t.Fatalf("VectorSearch auto-embed failed: %v", err)
+	}
+	if len(vecRes.Results) == 0 || vecRes.Results[0].Key != "doc1" {
+		t.Errorf("expected doc1 for auto-embedded VectorSearch, got: %v", vecRes.Results)
+	}
+
+	// 2. HybridSearch with SEMANTIC strategy using plain text (without query_vector)
+	hybridRes, err := srv.HybridSearch(ctx, &gogaghev1.HybridSearchRequest{
+		Query: "sepatu putih",
+		TopK:  2,
+		Strategies: []gogaghev1.SearchStrategy{
+			gogaghev1.SearchStrategy_SEARCH_STRATEGY_SEMANTIC,
+		},
+	})
+	if err != nil {
+		t.Fatalf("HybridSearch auto-embed failed: %v", err)
+	}
+	if len(hybridRes.Results) == 0 || hybridRes.Results[0].Key != "doc1" {
+		t.Errorf("expected doc1 for auto-embedded HybridSearch, got: %v", hybridRes.Results)
 	}
 }

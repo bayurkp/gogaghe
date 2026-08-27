@@ -86,6 +86,7 @@ message LexicalSearchResponse {
 message VectorSearchRequest {
   repeated float query_vector = 1;
   int32          top_k        = 2;
+  string         query        = 3; // optional: query text to auto-embed if query_vector is omitted
 }
 
 message VectorSearchResponse {

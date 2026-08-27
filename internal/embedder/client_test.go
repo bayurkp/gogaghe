@@ -2,6 +2,7 @@
 package embedder_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -85,6 +86,41 @@ func TestClient_EnqueueAndCallback(t *testing.T) {
 	}
 }
 
+func TestClient_Embed(t *testing.T) {
+	expectedVector := []float32{0.5, 0.6, 0.7}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := struct {
+			Vector []float32 `json:"vector"`
+		}{
+			Vector: expectedVector,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer ts.Close()
+
+	cfg := config.EmbedderConfig{
+		Enabled:        true,
+		URL:            ts.URL,
+		TimeoutSeconds: 2,
+	}
+
+	client := embedder.NewClient(cfg)
+	defer client.Stop()
+
+	vec, err := client.Embed(rContext(), "sepatu putih")
+	if err != nil {
+		t.Fatalf("Embed() error: %v", err)
+	}
+	if len(vec) != len(expectedVector) {
+		t.Fatalf("Embed() vector len = %d, want %d", len(vec), len(expectedVector))
+	}
+	if vec[0] != 0.5 || vec[1] != 0.6 || vec[2] != 0.7 {
+		t.Errorf("Embed() vector = %v, want %v", vec, expectedVector)
+	}
+}
+
 func TestClient_ChannelFullDrop(t *testing.T) {
 	// Dummy URL (server not called because channel is full and we drop)
 	cfg := config.EmbedderConfig{
@@ -101,4 +137,8 @@ func TestClient_ChannelFullDrop(t *testing.T) {
 	// Second enqueue should be dropped non-blocking without hang
 	client.Enqueue(embedder.EmbedRequest{Key: "k2", Text: "text2"})
 	client.Stop()
+}
+
+func rContext() context.Context {
+	return context.Background()
 }

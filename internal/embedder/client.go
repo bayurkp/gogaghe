@@ -98,7 +98,7 @@ func (c *Client) Stop() {
 func (c *Client) worker() {
 	defer c.wg.Done()
 	for req := range c.jobCh {
-		vec, err := c.embed(req.Text)
+		vec, err := c.Embed(context.Background(), req.Text)
 		if err != nil {
 			slog.Error("embedder: embed failed", "key", req.Key, "err", err)
 			continue
@@ -109,15 +109,22 @@ func (c *Client) worker() {
 	}
 }
 
-func (c *Client) embed(text string) ([]float32, error) {
+// Embed synchronously sends a text to the sidecar and returns its vector embedding.
+func (c *Client) Embed(ctx context.Context, text string) ([]float32, error) {
 	body, err := json.Marshal(embedPayload{Text: text})
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.cfg.TimeoutSeconds)*time.Second)
+
+	timeout := time.Duration(c.cfg.TimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+
+	reqCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.URL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, c.cfg.URL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}

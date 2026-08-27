@@ -37,8 +37,8 @@ func main() {
 		cfg.Store.MaxMemoryBytes,
 		time.Duration(cfg.Store.TTLCheckIntervalSeconds)*time.Second,
 	)
-	bm25 := store.NewBM25Index()
-	ngram := store.NewNgramIndex(3)
+	bm25 := store.NewBM25IndexWithParams(cfg.Search.Lexical.BM25K1, cfg.Search.Lexical.BM25B)
+	ngram := store.NewNgramIndex(cfg.Search.Surface.NgramSize)
 	metrics := server.NewMetrics()
 
 	// --- Embedder sidecar client (optional) ---
@@ -61,7 +61,7 @@ func main() {
 
 	// --- gRPC server ---
 	grpcSrv := grpc.NewServer()
-	gogaghev1.RegisterGogagheServiceServer(grpcSrv, server.NewGogagheServer(engine, bm25, ngram, metrics, emb))
+	gogaghev1.RegisterGogagheServiceServer(grpcSrv, server.NewGogagheServerWithConfig(engine, bm25, ngram, metrics, emb, cfg.Search))
 	reflection.Register(grpcSrv)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Server.GRPCPort))
