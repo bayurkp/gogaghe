@@ -27,25 +27,31 @@ const (
 type SearchStrategy int32
 
 const (
-	SearchStrategy_SEARCH_STRATEGY_UNSPECIFIED SearchStrategy = 0 // Automatically enables all strategies matching provided query/vector fields
-	SearchStrategy_SEARCH_STRATEGY_SURFACE     SearchStrategy = 1 // Character N-gram (Surface / Typo tolerance / SKU / Code)
-	SearchStrategy_SEARCH_STRATEGY_LEXICAL     SearchStrategy = 2 // BM25 Inverted Index (Lexical / Exact keyword / IDF)
-	SearchStrategy_SEARCH_STRATEGY_SEMANTIC    SearchStrategy = 3 // Dense Vector Cosine Similarity (Semantic meaning)
+	SearchStrategy_SEARCH_STRATEGY_UNSPECIFIED    SearchStrategy = 0 // Automatically enables all strategies matching provided query/vector fields
+	SearchStrategy_SEARCH_STRATEGY_SURFACE_NGRAM  SearchStrategy = 1 // Character N-gram (Surface / Typo tolerance / Substring)
+	SearchStrategy_SEARCH_STRATEGY_LEXICAL_BM25   SearchStrategy = 2 // Okapi BM25 Inverted Index (Lexical probabilistic keyword)
+	SearchStrategy_SEARCH_STRATEGY_LEXICAL_TFIDF  SearchStrategy = 3 // Salton TF-IDF (Lexical term frequency-inverse document frequency)
+	SearchStrategy_SEARCH_STRATEGY_SEMANTIC_LSA   SearchStrategy = 4 // Latent Semantic Analysis (Truncated SVD statistical semantics)
+	SearchStrategy_SEARCH_STRATEGY_SEMANTIC_DENSE SearchStrategy = 5 // Dense Vector Cosine Similarity (Deep neural embeddings)
 )
 
 // Enum value maps for SearchStrategy.
 var (
 	SearchStrategy_name = map[int32]string{
 		0: "SEARCH_STRATEGY_UNSPECIFIED",
-		1: "SEARCH_STRATEGY_SURFACE",
-		2: "SEARCH_STRATEGY_LEXICAL",
-		3: "SEARCH_STRATEGY_SEMANTIC",
+		1: "SEARCH_STRATEGY_SURFACE_NGRAM",
+		2: "SEARCH_STRATEGY_LEXICAL_BM25",
+		3: "SEARCH_STRATEGY_LEXICAL_TFIDF",
+		4: "SEARCH_STRATEGY_SEMANTIC_LSA",
+		5: "SEARCH_STRATEGY_SEMANTIC_DENSE",
 	}
 	SearchStrategy_value = map[string]int32{
-		"SEARCH_STRATEGY_UNSPECIFIED": 0,
-		"SEARCH_STRATEGY_SURFACE":     1,
-		"SEARCH_STRATEGY_LEXICAL":     2,
-		"SEARCH_STRATEGY_SEMANTIC":    3,
+		"SEARCH_STRATEGY_UNSPECIFIED":    0,
+		"SEARCH_STRATEGY_SURFACE_NGRAM":  1,
+		"SEARCH_STRATEGY_LEXICAL_BM25":   2,
+		"SEARCH_STRATEGY_LEXICAL_TFIDF":  3,
+		"SEARCH_STRATEGY_SEMANTIC_LSA":   4,
+		"SEARCH_STRATEGY_SEMANTIC_DENSE": 5,
 	}
 )
 
@@ -504,7 +510,104 @@ func (x *SurfaceSearchResponse) GetResults() []*SearchResult {
 	return nil
 }
 
-// --- LexicalSearch (BM25) ---
+// --- Bm25Search (Lexical BM25) ---
+type Bm25SearchRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	TopK          int32                  `protobuf:"varint,2,opt,name=top_k,json=topK,proto3" json:"top_k,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Bm25SearchRequest) Reset() {
+	*x = Bm25SearchRequest{}
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Bm25SearchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Bm25SearchRequest) ProtoMessage() {}
+
+func (x *Bm25SearchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Bm25SearchRequest.ProtoReflect.Descriptor instead.
+func (*Bm25SearchRequest) Descriptor() ([]byte, []int) {
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *Bm25SearchRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *Bm25SearchRequest) GetTopK() int32 {
+	if x != nil {
+		return x.TopK
+	}
+	return 0
+}
+
+type Bm25SearchResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Results       []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Bm25SearchResponse) Reset() {
+	*x = Bm25SearchResponse{}
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Bm25SearchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Bm25SearchResponse) ProtoMessage() {}
+
+func (x *Bm25SearchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Bm25SearchResponse.ProtoReflect.Descriptor instead.
+func (*Bm25SearchResponse) Descriptor() ([]byte, []int) {
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *Bm25SearchResponse) GetResults() []*SearchResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+// --- LexicalSearch (Alias for BM25) ---
 type LexicalSearchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
@@ -515,7 +618,7 @@ type LexicalSearchRequest struct {
 
 func (x *LexicalSearchRequest) Reset() {
 	*x = LexicalSearchRequest{}
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[8]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -527,7 +630,7 @@ func (x *LexicalSearchRequest) String() string {
 func (*LexicalSearchRequest) ProtoMessage() {}
 
 func (x *LexicalSearchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[8]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -540,7 +643,7 @@ func (x *LexicalSearchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LexicalSearchRequest.ProtoReflect.Descriptor instead.
 func (*LexicalSearchRequest) Descriptor() ([]byte, []int) {
-	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{8}
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *LexicalSearchRequest) GetQuery() string {
@@ -566,7 +669,7 @@ type LexicalSearchResponse struct {
 
 func (x *LexicalSearchResponse) Reset() {
 	*x = LexicalSearchResponse{}
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[9]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -578,7 +681,7 @@ func (x *LexicalSearchResponse) String() string {
 func (*LexicalSearchResponse) ProtoMessage() {}
 
 func (x *LexicalSearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[9]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -591,10 +694,204 @@ func (x *LexicalSearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LexicalSearchResponse.ProtoReflect.Descriptor instead.
 func (*LexicalSearchResponse) Descriptor() ([]byte, []int) {
-	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{9}
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *LexicalSearchResponse) GetResults() []*SearchResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+// --- TfidfSearch (Lexical TF-IDF) ---
+type TfidfSearchRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	TopK          int32                  `protobuf:"varint,2,opt,name=top_k,json=topK,proto3" json:"top_k,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TfidfSearchRequest) Reset() {
+	*x = TfidfSearchRequest{}
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TfidfSearchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TfidfSearchRequest) ProtoMessage() {}
+
+func (x *TfidfSearchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TfidfSearchRequest.ProtoReflect.Descriptor instead.
+func (*TfidfSearchRequest) Descriptor() ([]byte, []int) {
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *TfidfSearchRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *TfidfSearchRequest) GetTopK() int32 {
+	if x != nil {
+		return x.TopK
+	}
+	return 0
+}
+
+type TfidfSearchResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Results       []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TfidfSearchResponse) Reset() {
+	*x = TfidfSearchResponse{}
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TfidfSearchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TfidfSearchResponse) ProtoMessage() {}
+
+func (x *TfidfSearchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TfidfSearchResponse.ProtoReflect.Descriptor instead.
+func (*TfidfSearchResponse) Descriptor() ([]byte, []int) {
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *TfidfSearchResponse) GetResults() []*SearchResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+// --- LsaSearch (Latent Semantic SVD) ---
+type LsaSearchRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	TopK          int32                  `protobuf:"varint,2,opt,name=top_k,json=topK,proto3" json:"top_k,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LsaSearchRequest) Reset() {
+	*x = LsaSearchRequest{}
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LsaSearchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LsaSearchRequest) ProtoMessage() {}
+
+func (x *LsaSearchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LsaSearchRequest.ProtoReflect.Descriptor instead.
+func (*LsaSearchRequest) Descriptor() ([]byte, []int) {
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *LsaSearchRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *LsaSearchRequest) GetTopK() int32 {
+	if x != nil {
+		return x.TopK
+	}
+	return 0
+}
+
+type LsaSearchResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Results       []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LsaSearchResponse) Reset() {
+	*x = LsaSearchResponse{}
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LsaSearchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LsaSearchResponse) ProtoMessage() {}
+
+func (x *LsaSearchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LsaSearchResponse.ProtoReflect.Descriptor instead.
+func (*LsaSearchResponse) Descriptor() ([]byte, []int) {
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *LsaSearchResponse) GetResults() []*SearchResult {
 	if x != nil {
 		return x.Results
 	}
@@ -613,7 +910,7 @@ type VectorSearchRequest struct {
 
 func (x *VectorSearchRequest) Reset() {
 	*x = VectorSearchRequest{}
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[10]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -625,7 +922,7 @@ func (x *VectorSearchRequest) String() string {
 func (*VectorSearchRequest) ProtoMessage() {}
 
 func (x *VectorSearchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[10]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -638,7 +935,7 @@ func (x *VectorSearchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VectorSearchRequest.ProtoReflect.Descriptor instead.
 func (*VectorSearchRequest) Descriptor() ([]byte, []int) {
-	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{10}
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *VectorSearchRequest) GetQuery() string {
@@ -671,7 +968,7 @@ type VectorSearchResponse struct {
 
 func (x *VectorSearchResponse) Reset() {
 	*x = VectorSearchResponse{}
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[11]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -683,7 +980,7 @@ func (x *VectorSearchResponse) String() string {
 func (*VectorSearchResponse) ProtoMessage() {}
 
 func (x *VectorSearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[11]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -696,7 +993,7 @@ func (x *VectorSearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VectorSearchResponse.ProtoReflect.Descriptor instead.
 func (*VectorSearchResponse) Descriptor() ([]byte, []int) {
-	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{11}
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *VectorSearchResponse) GetResults() []*SearchResult {
@@ -709,8 +1006,8 @@ func (x *VectorSearchResponse) GetResults() []*SearchResult {
 // --- HybridSearch (RRF Fusion) ---
 type HybridSearchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`                                         // query text for surface/lexical
-	QueryVector   []float32              `protobuf:"fixed32,2,rep,packed,name=query_vector,json=queryVector,proto3" json:"query_vector,omitempty"` // semantic query vector
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`                                         // query text for surface/lexical/lsa
+	QueryVector   []float32              `protobuf:"fixed32,2,rep,packed,name=query_vector,json=queryVector,proto3" json:"query_vector,omitempty"` // dense semantic query vector
 	TopK          int32                  `protobuf:"varint,3,opt,name=top_k,json=topK,proto3" json:"top_k,omitempty"`
 	RrfK          float32                `protobuf:"fixed32,4,opt,name=rrf_k,json=rrfK,proto3" json:"rrf_k,omitempty"`                                      // RRF constant, default 60.0
 	Strategies    []SearchStrategy       `protobuf:"varint,5,rep,packed,name=strategies,proto3,enum=gogaghe.v1.SearchStrategy" json:"strategies,omitempty"` // Optional: specify exact strategies to fuse (if empty, auto-detects from provided fields)
@@ -720,7 +1017,7 @@ type HybridSearchRequest struct {
 
 func (x *HybridSearchRequest) Reset() {
 	*x = HybridSearchRequest{}
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[12]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -732,7 +1029,7 @@ func (x *HybridSearchRequest) String() string {
 func (*HybridSearchRequest) ProtoMessage() {}
 
 func (x *HybridSearchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[12]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -745,7 +1042,7 @@ func (x *HybridSearchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HybridSearchRequest.ProtoReflect.Descriptor instead.
 func (*HybridSearchRequest) Descriptor() ([]byte, []int) {
-	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{12}
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *HybridSearchRequest) GetQuery() string {
@@ -792,7 +1089,7 @@ type HybridSearchResponse struct {
 
 func (x *HybridSearchResponse) Reset() {
 	*x = HybridSearchResponse{}
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[13]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -804,7 +1101,7 @@ func (x *HybridSearchResponse) String() string {
 func (*HybridSearchResponse) ProtoMessage() {}
 
 func (x *HybridSearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[13]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -817,7 +1114,7 @@ func (x *HybridSearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HybridSearchResponse.ProtoReflect.Descriptor instead.
 func (*HybridSearchResponse) Descriptor() ([]byte, []int) {
-	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{13}
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *HybridSearchResponse) GetResults() []*SearchResult {
@@ -839,7 +1136,7 @@ type SearchResult struct {
 
 func (x *SearchResult) Reset() {
 	*x = SearchResult{}
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[14]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -851,7 +1148,7 @@ func (x *SearchResult) String() string {
 func (*SearchResult) ProtoMessage() {}
 
 func (x *SearchResult) ProtoReflect() protoreflect.Message {
-	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[14]
+	mi := &file_gogaghe_v1_gogaghe_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -864,7 +1161,7 @@ func (x *SearchResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchResult.ProtoReflect.Descriptor instead.
 func (*SearchResult) Descriptor() ([]byte, []int) {
-	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{14}
+	return file_gogaghe_v1_gogaghe_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SearchResult) GetKey() string {
@@ -921,11 +1218,26 @@ const file_gogaghe_v1_gogaghe_proto_rawDesc = "" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n" +
 	"\x05top_k\x18\x02 \x01(\x05R\x04topK\"K\n" +
 	"\x15SurfaceSearchResponse\x122\n" +
+	"\aresults\x18\x01 \x03(\v2\x18.gogaghe.v1.SearchResultR\aresults\">\n" +
+	"\x11Bm25SearchRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n" +
+	"\x05top_k\x18\x02 \x01(\x05R\x04topK\"H\n" +
+	"\x12Bm25SearchResponse\x122\n" +
 	"\aresults\x18\x01 \x03(\v2\x18.gogaghe.v1.SearchResultR\aresults\"A\n" +
 	"\x14LexicalSearchRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n" +
 	"\x05top_k\x18\x02 \x01(\x05R\x04topK\"K\n" +
 	"\x15LexicalSearchResponse\x122\n" +
+	"\aresults\x18\x01 \x03(\v2\x18.gogaghe.v1.SearchResultR\aresults\"?\n" +
+	"\x12TfidfSearchRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n" +
+	"\x05top_k\x18\x02 \x01(\x05R\x04topK\"I\n" +
+	"\x13TfidfSearchResponse\x122\n" +
+	"\aresults\x18\x01 \x03(\v2\x18.gogaghe.v1.SearchResultR\aresults\"=\n" +
+	"\x10LsaSearchRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n" +
+	"\x05top_k\x18\x02 \x01(\x05R\x04topK\"G\n" +
+	"\x11LsaSearchResponse\x122\n" +
 	"\aresults\x18\x01 \x03(\v2\x18.gogaghe.v1.SearchResultR\aresults\"c\n" +
 	"\x13VectorSearchRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12!\n" +
@@ -946,18 +1258,24 @@ const file_gogaghe_v1_gogaghe_proto_rawDesc = "" +
 	"\fSearchResult\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\fR\x05value\x12\x14\n" +
-	"\x05score\x18\x03 \x01(\x02R\x05score*\x89\x01\n" +
+	"\x05score\x18\x03 \x01(\x02R\x05score*\xdf\x01\n" +
 	"\x0eSearchStrategy\x12\x1f\n" +
-	"\x1bSEARCH_STRATEGY_UNSPECIFIED\x10\x00\x12\x1b\n" +
-	"\x17SEARCH_STRATEGY_SURFACE\x10\x01\x12\x1b\n" +
-	"\x17SEARCH_STRATEGY_LEXICAL\x10\x02\x12\x1c\n" +
-	"\x18SEARCH_STRATEGY_SEMANTIC\x10\x032\x93\x04\n" +
+	"\x1bSEARCH_STRATEGY_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dSEARCH_STRATEGY_SURFACE_NGRAM\x10\x01\x12 \n" +
+	"\x1cSEARCH_STRATEGY_LEXICAL_BM25\x10\x02\x12!\n" +
+	"\x1dSEARCH_STRATEGY_LEXICAL_TFIDF\x10\x03\x12 \n" +
+	"\x1cSEARCH_STRATEGY_SEMANTIC_LSA\x10\x04\x12\"\n" +
+	"\x1eSEARCH_STRATEGY_SEMANTIC_DENSE\x10\x052\xfa\x05\n" +
 	"\x0eGogagheService\x126\n" +
 	"\x03Set\x12\x16.gogaghe.v1.SetRequest\x1a\x17.gogaghe.v1.SetResponse\x126\n" +
 	"\x03Get\x12\x16.gogaghe.v1.GetRequest\x1a\x17.gogaghe.v1.GetResponse\x12?\n" +
 	"\x06Delete\x12\x19.gogaghe.v1.DeleteRequest\x1a\x1a.gogaghe.v1.DeleteResponse\x12T\n" +
-	"\rSurfaceSearch\x12 .gogaghe.v1.SurfaceSearchRequest\x1a!.gogaghe.v1.SurfaceSearchResponse\x12T\n" +
-	"\rLexicalSearch\x12 .gogaghe.v1.LexicalSearchRequest\x1a!.gogaghe.v1.LexicalSearchResponse\x12Q\n" +
+	"\rSurfaceSearch\x12 .gogaghe.v1.SurfaceSearchRequest\x1a!.gogaghe.v1.SurfaceSearchResponse\x12K\n" +
+	"\n" +
+	"Bm25Search\x12\x1d.gogaghe.v1.Bm25SearchRequest\x1a\x1e.gogaghe.v1.Bm25SearchResponse\x12T\n" +
+	"\rLexicalSearch\x12 .gogaghe.v1.LexicalSearchRequest\x1a!.gogaghe.v1.LexicalSearchResponse\x12N\n" +
+	"\vTfidfSearch\x12\x1e.gogaghe.v1.TfidfSearchRequest\x1a\x1f.gogaghe.v1.TfidfSearchResponse\x12H\n" +
+	"\tLsaSearch\x12\x1c.gogaghe.v1.LsaSearchRequest\x1a\x1d.gogaghe.v1.LsaSearchResponse\x12Q\n" +
 	"\fVectorSearch\x12\x1f.gogaghe.v1.VectorSearchRequest\x1a .gogaghe.v1.VectorSearchResponse\x12Q\n" +
 	"\fHybridSearch\x12\x1f.gogaghe.v1.HybridSearchRequest\x1a .gogaghe.v1.HybridSearchResponseB5Z3github.com/bayurkp/gogaghe/pkg/gogaghe/v1;gogaghev1b\x06proto3"
 
@@ -974,7 +1292,7 @@ func file_gogaghe_v1_gogaghe_proto_rawDescGZIP() []byte {
 }
 
 var file_gogaghe_v1_gogaghe_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_gogaghe_v1_gogaghe_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_gogaghe_v1_gogaghe_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_gogaghe_v1_gogaghe_proto_goTypes = []any{
 	(SearchStrategy)(0),           // 0: gogaghe.v1.SearchStrategy
 	(*SetRequest)(nil),            // 1: gogaghe.v1.SetRequest
@@ -985,39 +1303,54 @@ var file_gogaghe_v1_gogaghe_proto_goTypes = []any{
 	(*DeleteResponse)(nil),        // 6: gogaghe.v1.DeleteResponse
 	(*SurfaceSearchRequest)(nil),  // 7: gogaghe.v1.SurfaceSearchRequest
 	(*SurfaceSearchResponse)(nil), // 8: gogaghe.v1.SurfaceSearchResponse
-	(*LexicalSearchRequest)(nil),  // 9: gogaghe.v1.LexicalSearchRequest
-	(*LexicalSearchResponse)(nil), // 10: gogaghe.v1.LexicalSearchResponse
-	(*VectorSearchRequest)(nil),   // 11: gogaghe.v1.VectorSearchRequest
-	(*VectorSearchResponse)(nil),  // 12: gogaghe.v1.VectorSearchResponse
-	(*HybridSearchRequest)(nil),   // 13: gogaghe.v1.HybridSearchRequest
-	(*HybridSearchResponse)(nil),  // 14: gogaghe.v1.HybridSearchResponse
-	(*SearchResult)(nil),          // 15: gogaghe.v1.SearchResult
+	(*Bm25SearchRequest)(nil),     // 9: gogaghe.v1.Bm25SearchRequest
+	(*Bm25SearchResponse)(nil),    // 10: gogaghe.v1.Bm25SearchResponse
+	(*LexicalSearchRequest)(nil),  // 11: gogaghe.v1.LexicalSearchRequest
+	(*LexicalSearchResponse)(nil), // 12: gogaghe.v1.LexicalSearchResponse
+	(*TfidfSearchRequest)(nil),    // 13: gogaghe.v1.TfidfSearchRequest
+	(*TfidfSearchResponse)(nil),   // 14: gogaghe.v1.TfidfSearchResponse
+	(*LsaSearchRequest)(nil),      // 15: gogaghe.v1.LsaSearchRequest
+	(*LsaSearchResponse)(nil),     // 16: gogaghe.v1.LsaSearchResponse
+	(*VectorSearchRequest)(nil),   // 17: gogaghe.v1.VectorSearchRequest
+	(*VectorSearchResponse)(nil),  // 18: gogaghe.v1.VectorSearchResponse
+	(*HybridSearchRequest)(nil),   // 19: gogaghe.v1.HybridSearchRequest
+	(*HybridSearchResponse)(nil),  // 20: gogaghe.v1.HybridSearchResponse
+	(*SearchResult)(nil),          // 21: gogaghe.v1.SearchResult
 }
 var file_gogaghe_v1_gogaghe_proto_depIdxs = []int32{
-	15, // 0: gogaghe.v1.SurfaceSearchResponse.results:type_name -> gogaghe.v1.SearchResult
-	15, // 1: gogaghe.v1.LexicalSearchResponse.results:type_name -> gogaghe.v1.SearchResult
-	15, // 2: gogaghe.v1.VectorSearchResponse.results:type_name -> gogaghe.v1.SearchResult
-	0,  // 3: gogaghe.v1.HybridSearchRequest.strategies:type_name -> gogaghe.v1.SearchStrategy
-	15, // 4: gogaghe.v1.HybridSearchResponse.results:type_name -> gogaghe.v1.SearchResult
-	1,  // 5: gogaghe.v1.GogagheService.Set:input_type -> gogaghe.v1.SetRequest
-	3,  // 6: gogaghe.v1.GogagheService.Get:input_type -> gogaghe.v1.GetRequest
-	5,  // 7: gogaghe.v1.GogagheService.Delete:input_type -> gogaghe.v1.DeleteRequest
-	7,  // 8: gogaghe.v1.GogagheService.SurfaceSearch:input_type -> gogaghe.v1.SurfaceSearchRequest
-	9,  // 9: gogaghe.v1.GogagheService.LexicalSearch:input_type -> gogaghe.v1.LexicalSearchRequest
-	11, // 10: gogaghe.v1.GogagheService.VectorSearch:input_type -> gogaghe.v1.VectorSearchRequest
-	13, // 11: gogaghe.v1.GogagheService.HybridSearch:input_type -> gogaghe.v1.HybridSearchRequest
-	2,  // 12: gogaghe.v1.GogagheService.Set:output_type -> gogaghe.v1.SetResponse
-	4,  // 13: gogaghe.v1.GogagheService.Get:output_type -> gogaghe.v1.GetResponse
-	6,  // 14: gogaghe.v1.GogagheService.Delete:output_type -> gogaghe.v1.DeleteResponse
-	8,  // 15: gogaghe.v1.GogagheService.SurfaceSearch:output_type -> gogaghe.v1.SurfaceSearchResponse
-	10, // 16: gogaghe.v1.GogagheService.LexicalSearch:output_type -> gogaghe.v1.LexicalSearchResponse
-	12, // 17: gogaghe.v1.GogagheService.VectorSearch:output_type -> gogaghe.v1.VectorSearchResponse
-	14, // 18: gogaghe.v1.GogagheService.HybridSearch:output_type -> gogaghe.v1.HybridSearchResponse
-	12, // [12:19] is the sub-list for method output_type
-	5,  // [5:12] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	21, // 0: gogaghe.v1.SurfaceSearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	21, // 1: gogaghe.v1.Bm25SearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	21, // 2: gogaghe.v1.LexicalSearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	21, // 3: gogaghe.v1.TfidfSearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	21, // 4: gogaghe.v1.LsaSearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	21, // 5: gogaghe.v1.VectorSearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	0,  // 6: gogaghe.v1.HybridSearchRequest.strategies:type_name -> gogaghe.v1.SearchStrategy
+	21, // 7: gogaghe.v1.HybridSearchResponse.results:type_name -> gogaghe.v1.SearchResult
+	1,  // 8: gogaghe.v1.GogagheService.Set:input_type -> gogaghe.v1.SetRequest
+	3,  // 9: gogaghe.v1.GogagheService.Get:input_type -> gogaghe.v1.GetRequest
+	5,  // 10: gogaghe.v1.GogagheService.Delete:input_type -> gogaghe.v1.DeleteRequest
+	7,  // 11: gogaghe.v1.GogagheService.SurfaceSearch:input_type -> gogaghe.v1.SurfaceSearchRequest
+	9,  // 12: gogaghe.v1.GogagheService.Bm25Search:input_type -> gogaghe.v1.Bm25SearchRequest
+	11, // 13: gogaghe.v1.GogagheService.LexicalSearch:input_type -> gogaghe.v1.LexicalSearchRequest
+	13, // 14: gogaghe.v1.GogagheService.TfidfSearch:input_type -> gogaghe.v1.TfidfSearchRequest
+	15, // 15: gogaghe.v1.GogagheService.LsaSearch:input_type -> gogaghe.v1.LsaSearchRequest
+	17, // 16: gogaghe.v1.GogagheService.VectorSearch:input_type -> gogaghe.v1.VectorSearchRequest
+	19, // 17: gogaghe.v1.GogagheService.HybridSearch:input_type -> gogaghe.v1.HybridSearchRequest
+	2,  // 18: gogaghe.v1.GogagheService.Set:output_type -> gogaghe.v1.SetResponse
+	4,  // 19: gogaghe.v1.GogagheService.Get:output_type -> gogaghe.v1.GetResponse
+	6,  // 20: gogaghe.v1.GogagheService.Delete:output_type -> gogaghe.v1.DeleteResponse
+	8,  // 21: gogaghe.v1.GogagheService.SurfaceSearch:output_type -> gogaghe.v1.SurfaceSearchResponse
+	10, // 22: gogaghe.v1.GogagheService.Bm25Search:output_type -> gogaghe.v1.Bm25SearchResponse
+	12, // 23: gogaghe.v1.GogagheService.LexicalSearch:output_type -> gogaghe.v1.LexicalSearchResponse
+	14, // 24: gogaghe.v1.GogagheService.TfidfSearch:output_type -> gogaghe.v1.TfidfSearchResponse
+	16, // 25: gogaghe.v1.GogagheService.LsaSearch:output_type -> gogaghe.v1.LsaSearchResponse
+	18, // 26: gogaghe.v1.GogagheService.VectorSearch:output_type -> gogaghe.v1.VectorSearchResponse
+	20, // 27: gogaghe.v1.GogagheService.HybridSearch:output_type -> gogaghe.v1.HybridSearchResponse
+	18, // [18:28] is the sub-list for method output_type
+	8,  // [8:18] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_gogaghe_v1_gogaghe_proto_init() }
@@ -1031,7 +1364,7 @@ func file_gogaghe_v1_gogaghe_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_gogaghe_v1_gogaghe_proto_rawDesc), len(file_gogaghe_v1_gogaghe_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   15,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

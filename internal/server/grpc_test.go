@@ -24,8 +24,10 @@ func newTestServer(t *testing.T, maxMem int64) (*server.GogagheServer, *store.En
 	t.Cleanup(e.Stop)
 	bm25 := store.NewBM25Index()
 	ngram := store.NewNgramIndex(3)
+	tfidf := store.NewTFIDFIndex()
+	lsa := store.NewLSAIndexWithDim(8)
 	metrics := server.NewMetrics()
-	srv := server.NewGogagheServer(e, bm25, ngram, metrics, nil)
+	srv := server.NewGogagheServer(e, bm25, ngram, tfidf, lsa, metrics, nil)
 	return srv, e
 }
 
@@ -174,7 +176,7 @@ func TestGogagheServer_SurfaceSearch(t *testing.T) {
 	}
 }
 
-func TestGogagheServer_LexicalSearch(t *testing.T) {
+func TestGogagheServer_Bm25Search_And_LexicalSearch(t *testing.T) {
 	srv, _ := newTestServer(t, 1024*1024)
 	ctx := context.Background()
 
@@ -187,65 +189,113 @@ func TestGogagheServer_LexicalSearch(t *testing.T) {
 		Value: []byte("in-memory cache eviction policy lru"),
 	})
 
-	res, err := srv.LexicalSearch(ctx, &gogaghev1.LexicalSearchRequest{
+	res, err := srv.Bm25Search(ctx, &gogaghev1.Bm25SearchRequest{
 		Query: "consensus raft",
 		TopK:  1,
 	})
 	if err != nil {
-		t.Fatalf("LexicalSearch failed: %v", err)
+		t.Fatalf("Bm25Search failed: %v", err)
 	}
 	if len(res.Results) == 0 || res.Results[0].Key != "doc1" {
-		t.Fatalf("expected doc1 as top lexical search result, got: %v", res.Results)
+		t.Fatalf("expected doc1 as top bm25 search result, got: %v", res.Results)
+	}
+
+	lexRes, err := srv.LexicalSearch(ctx, &gogaghev1.LexicalSearchRequest{
+		Query: "consensus raft",
+		TopK:  1,
+	})
+	if err != nil {
+		t.Fatalf("LexicalSearch alias failed: %v", err)
+	}
+	if len(lexRes.Results) == 0 || lexRes.Results[0].Key != "doc1" {
+		t.Fatalf("expected doc1 as top lexical search result, got: %v", lexRes.Results)
 	}
 }
 
-func TestGogagheServer_HybridSearch_StrategySelection(t *testing.T) {
+func TestGogagheServer_TfidfSearch_And_LsaSearch(t *testing.T) {
+	srv, _ := newTestServer(t, 1024*1024)
+	ctx := context.Background()
+
+	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
+		Key:   "doc-go",
+		Value: []byte("golang fast compiled backend language concurrent"),
+	})
+	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
+		Key:   "doc-py",
+		Value: []byte("python interpreted dynamic data science scripting"),
+	})
+
+	// TF-IDF Search
+	tfidfRes, err := srv.TfidfSearch(ctx, &gogaghev1.TfidfSearchRequest{
+		Query: "golang compiled concurrent",
+		TopK:  1,
+	})
+	if err != nil {
+		t.Fatalf("TfidfSearch failed: %v", err)
+	}
+	if len(tfidfRes.Results) == 0 || tfidfRes.Results[0].Key != "doc-go" {
+		t.Fatalf("expected doc-go as top TF-IDF result, got: %v", tfidfRes.Results)
+	}
+
+	// LSA Search
+	lsaRes, err := srv.LsaSearch(ctx, &gogaghev1.LsaSearchRequest{
+		Query: "golang concurrent",
+		TopK:  1,
+	})
+	if err != nil {
+		t.Fatalf("LsaSearch failed: %v", err)
+	}
+	if len(lsaRes.Results) == 0 || lsaRes.Results[0].Key != "doc-go" {
+		t.Fatalf("expected doc-go as top LSA result, got: %v", lsaRes.Results)
+	}
+}
+
+func TestGogagheServer_HybridSearch_5TierStrategies(t *testing.T) {
 	srv, _ := newTestServer(t, 1024*1024)
 	ctx := context.Background()
 
 	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
 		Key:    "doc-pg",
-		Value:  []byte("PostgreSQL database setup"),
+		Value:  []byte("PostgreSQL relational database setup"),
 		Vector: []float32{1, 0, 0},
 	})
 	_, _ = srv.Set(ctx, &gogaghev1.SetRequest{
 		Key:    "doc-redis",
-		Value:  []byte("Redis in-memory caching"),
+		Value:  []byte("Redis in-memory caching system"),
 		Vector: []float32{0, 1, 0},
 	})
 
-	// 1. Explicitly select SURFACE + SEMANTIC (Skip Lexical)
+	// 1. Explicitly select SURFACE_NGRAM + SEMANTIC_DENSE
 	res1, err := srv.HybridSearch(ctx, &gogaghev1.HybridSearchRequest{
 		Query:       "Postgres", // typo / surface match for PostgreSQL
 		QueryVector: []float32{0.9, 0.1, 0},
 		TopK:        2,
 		Strategies: []gogaghev1.SearchStrategy{
-			gogaghev1.SearchStrategy_SEARCH_STRATEGY_SURFACE,
-			gogaghev1.SearchStrategy_SEARCH_STRATEGY_SEMANTIC,
+			gogaghev1.SearchStrategy_SEARCH_STRATEGY_SURFACE_NGRAM,
+			gogaghev1.SearchStrategy_SEARCH_STRATEGY_SEMANTIC_DENSE,
 		},
 	})
 	if err != nil {
 		t.Fatalf("HybridSearch with strategies failed: %v", err)
 	}
 	if len(res1.Results) == 0 || res1.Results[0].Key != "doc-pg" {
-		t.Errorf("expected doc-pg as top result for Surface+Semantic, got: %v", res1.Results)
+		t.Errorf("expected doc-pg as top result for Surface+Dense, got: %v", res1.Results)
 	}
 
-	// 2. Explicitly select only LEXICAL (BM25)
+	// 2. Explicitly select TFIDF + LSA
 	res2, err := srv.HybridSearch(ctx, &gogaghev1.HybridSearchRequest{
-		Query:       "Postgres", // BM25 exact match won't match "PostgreSQL"
-		QueryVector: []float32{0.9, 0.1, 0}, // provided but ignored because SEMANTIC is not in strategies
-		TopK:        2,
+		Query: "relational database",
+		TopK:  2,
 		Strategies: []gogaghev1.SearchStrategy{
-			gogaghev1.SearchStrategy_SEARCH_STRATEGY_LEXICAL,
+			gogaghev1.SearchStrategy_SEARCH_STRATEGY_LEXICAL_TFIDF,
+			gogaghev1.SearchStrategy_SEARCH_STRATEGY_SEMANTIC_LSA,
 		},
 	})
 	if err != nil {
-		t.Fatalf("HybridSearch with lexical only failed: %v", err)
+		t.Fatalf("HybridSearch with TFIDF+LSA failed: %v", err)
 	}
-	// "Postgres" token doesn't exist in BM25 ("postgresql" does) -> 0 results
-	if len(res2.Results) != 0 {
-		t.Errorf("expected 0 results for exact lexical search on 'Postgres', got: %v", res2.Results)
+	if len(res2.Results) == 0 || res2.Results[0].Key != "doc-pg" {
+		t.Errorf("expected doc-pg as top result for TFIDF+LSA, got: %v", res2.Results)
 	}
 }
 
@@ -298,8 +348,10 @@ func TestGogagheServer_NativeQueryAutoEmbedding(t *testing.T) {
 	t.Cleanup(e.Stop)
 	bm25 := store.NewBM25Index()
 	ngram := store.NewNgramIndex(3)
+	tfidf := store.NewTFIDFIndex()
+	lsa := store.NewLSAIndexWithDim(8)
 	metrics := server.NewMetrics()
-	srv := server.NewGogagheServer(e, bm25, ngram, metrics, emb)
+	srv := server.NewGogagheServer(e, bm25, ngram, tfidf, lsa, metrics, emb)
 
 	ctx := context.Background()
 
@@ -327,12 +379,12 @@ func TestGogagheServer_NativeQueryAutoEmbedding(t *testing.T) {
 		t.Errorf("expected doc1 for auto-embedded VectorSearch, got: %v", vecRes.Results)
 	}
 
-	// 2. HybridSearch with SEMANTIC strategy using plain text (without query_vector)
+	// 2. HybridSearch with SEMANTIC_DENSE strategy using plain text (without query_vector)
 	hybridRes, err := srv.HybridSearch(ctx, &gogaghev1.HybridSearchRequest{
 		Query: "sepatu putih",
 		TopK:  2,
 		Strategies: []gogaghev1.SearchStrategy{
-			gogaghev1.SearchStrategy_SEARCH_STRATEGY_SEMANTIC,
+			gogaghev1.SearchStrategy_SEARCH_STRATEGY_SEMANTIC_DENSE,
 		},
 	})
 	if err != nil {

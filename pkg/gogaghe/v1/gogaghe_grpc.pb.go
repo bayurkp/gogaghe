@@ -25,7 +25,10 @@ const (
 	GogagheService_Get_FullMethodName           = "/gogaghe.v1.GogagheService/Get"
 	GogagheService_Delete_FullMethodName        = "/gogaghe.v1.GogagheService/Delete"
 	GogagheService_SurfaceSearch_FullMethodName = "/gogaghe.v1.GogagheService/SurfaceSearch"
+	GogagheService_Bm25Search_FullMethodName    = "/gogaghe.v1.GogagheService/Bm25Search"
 	GogagheService_LexicalSearch_FullMethodName = "/gogaghe.v1.GogagheService/LexicalSearch"
+	GogagheService_TfidfSearch_FullMethodName   = "/gogaghe.v1.GogagheService/TfidfSearch"
+	GogagheService_LsaSearch_FullMethodName     = "/gogaghe.v1.GogagheService/LsaSearch"
 	GogagheService_VectorSearch_FullMethodName  = "/gogaghe.v1.GogagheService/VectorSearch"
 	GogagheService_HybridSearch_FullMethodName  = "/gogaghe.v1.GogagheService/HybridSearch"
 )
@@ -39,7 +42,10 @@ type GogagheServiceClient interface {
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
 	// Single-strategy dedicated search RPCs:
 	SurfaceSearch(ctx context.Context, in *SurfaceSearchRequest, opts ...grpc.CallOption) (*SurfaceSearchResponse, error)
+	Bm25Search(ctx context.Context, in *Bm25SearchRequest, opts ...grpc.CallOption) (*Bm25SearchResponse, error)
 	LexicalSearch(ctx context.Context, in *LexicalSearchRequest, opts ...grpc.CallOption) (*LexicalSearchResponse, error)
+	TfidfSearch(ctx context.Context, in *TfidfSearchRequest, opts ...grpc.CallOption) (*TfidfSearchResponse, error)
+	LsaSearch(ctx context.Context, in *LsaSearchRequest, opts ...grpc.CallOption) (*LsaSearchResponse, error)
 	VectorSearch(ctx context.Context, in *VectorSearchRequest, opts ...grpc.CallOption) (*VectorSearchResponse, error)
 	// Multi-strategy fused hybrid search RPC:
 	HybridSearch(ctx context.Context, in *HybridSearchRequest, opts ...grpc.CallOption) (*HybridSearchResponse, error)
@@ -93,10 +99,40 @@ func (c *gogagheServiceClient) SurfaceSearch(ctx context.Context, in *SurfaceSea
 	return out, nil
 }
 
+func (c *gogagheServiceClient) Bm25Search(ctx context.Context, in *Bm25SearchRequest, opts ...grpc.CallOption) (*Bm25SearchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Bm25SearchResponse)
+	err := c.cc.Invoke(ctx, GogagheService_Bm25Search_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *gogagheServiceClient) LexicalSearch(ctx context.Context, in *LexicalSearchRequest, opts ...grpc.CallOption) (*LexicalSearchResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(LexicalSearchResponse)
 	err := c.cc.Invoke(ctx, GogagheService_LexicalSearch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gogagheServiceClient) TfidfSearch(ctx context.Context, in *TfidfSearchRequest, opts ...grpc.CallOption) (*TfidfSearchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TfidfSearchResponse)
+	err := c.cc.Invoke(ctx, GogagheService_TfidfSearch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gogagheServiceClient) LsaSearch(ctx context.Context, in *LsaSearchRequest, opts ...grpc.CallOption) (*LsaSearchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LsaSearchResponse)
+	err := c.cc.Invoke(ctx, GogagheService_LsaSearch_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +168,10 @@ type GogagheServiceServer interface {
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
 	// Single-strategy dedicated search RPCs:
 	SurfaceSearch(context.Context, *SurfaceSearchRequest) (*SurfaceSearchResponse, error)
+	Bm25Search(context.Context, *Bm25SearchRequest) (*Bm25SearchResponse, error)
 	LexicalSearch(context.Context, *LexicalSearchRequest) (*LexicalSearchResponse, error)
+	TfidfSearch(context.Context, *TfidfSearchRequest) (*TfidfSearchResponse, error)
+	LsaSearch(context.Context, *LsaSearchRequest) (*LsaSearchResponse, error)
 	VectorSearch(context.Context, *VectorSearchRequest) (*VectorSearchResponse, error)
 	// Multi-strategy fused hybrid search RPC:
 	HybridSearch(context.Context, *HybridSearchRequest) (*HybridSearchResponse, error)
@@ -157,8 +196,17 @@ func (UnimplementedGogagheServiceServer) Delete(context.Context, *DeleteRequest)
 func (UnimplementedGogagheServiceServer) SurfaceSearch(context.Context, *SurfaceSearchRequest) (*SurfaceSearchResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SurfaceSearch not implemented")
 }
+func (UnimplementedGogagheServiceServer) Bm25Search(context.Context, *Bm25SearchRequest) (*Bm25SearchResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Bm25Search not implemented")
+}
 func (UnimplementedGogagheServiceServer) LexicalSearch(context.Context, *LexicalSearchRequest) (*LexicalSearchResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LexicalSearch not implemented")
+}
+func (UnimplementedGogagheServiceServer) TfidfSearch(context.Context, *TfidfSearchRequest) (*TfidfSearchResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method TfidfSearch not implemented")
+}
+func (UnimplementedGogagheServiceServer) LsaSearch(context.Context, *LsaSearchRequest) (*LsaSearchResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LsaSearch not implemented")
 }
 func (UnimplementedGogagheServiceServer) VectorSearch(context.Context, *VectorSearchRequest) (*VectorSearchResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method VectorSearch not implemented")
@@ -258,6 +306,24 @@ func _GogagheService_SurfaceSearch_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GogagheService_Bm25Search_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Bm25SearchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GogagheServiceServer).Bm25Search(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GogagheService_Bm25Search_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GogagheServiceServer).Bm25Search(ctx, req.(*Bm25SearchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _GogagheService_LexicalSearch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LexicalSearchRequest)
 	if err := dec(in); err != nil {
@@ -272,6 +338,42 @@ func _GogagheService_LexicalSearch_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GogagheServiceServer).LexicalSearch(ctx, req.(*LexicalSearchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GogagheService_TfidfSearch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TfidfSearchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GogagheServiceServer).TfidfSearch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GogagheService_TfidfSearch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GogagheServiceServer).TfidfSearch(ctx, req.(*TfidfSearchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GogagheService_LsaSearch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LsaSearchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GogagheServiceServer).LsaSearch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GogagheService_LsaSearch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GogagheServiceServer).LsaSearch(ctx, req.(*LsaSearchRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -336,8 +438,20 @@ var GogagheService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GogagheService_SurfaceSearch_Handler,
 		},
 		{
+			MethodName: "Bm25Search",
+			Handler:    _GogagheService_Bm25Search_Handler,
+		},
+		{
 			MethodName: "LexicalSearch",
 			Handler:    _GogagheService_LexicalSearch_Handler,
+		},
+		{
+			MethodName: "TfidfSearch",
+			Handler:    _GogagheService_TfidfSearch_Handler,
+		},
+		{
+			MethodName: "LsaSearch",
+			Handler:    _GogagheService_LsaSearch_Handler,
 		},
 		{
 			MethodName: "VectorSearch",

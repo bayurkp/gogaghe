@@ -36,6 +36,8 @@ type StoreConfig struct {
 type SearchConfig struct {
 	Surface SurfaceConfig `yaml:"surface"`
 	Lexical LexicalConfig `yaml:"lexical"`
+	TFIDF   TFIDFConfig   `yaml:"tfidf"`
+	LSA     LSAConfig     `yaml:"lsa"`
 	Hybrid  HybridConfig  `yaml:"hybrid"`
 }
 
@@ -50,6 +52,17 @@ type LexicalConfig struct {
 	Enabled bool    `yaml:"enabled"`
 	BM25K1  float64 `yaml:"bm25_k1"` // default: 1.5
 	BM25B   float64 `yaml:"bm25_b"`  // default: 0.75
+}
+
+// TFIDFConfig holds parameters for classic TF-IDF search.
+type TFIDFConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
+
+// LSAConfig holds parameters for Latent Semantic Analysis (Truncated SVD).
+type LSAConfig struct {
+	Enabled bool `yaml:"enabled"`
+	DimK    int  `yaml:"dim_k"` // default: 64
 }
 
 // HybridConfig holds parameters for reciprocal rank fusion.
@@ -88,6 +101,13 @@ func DefaultConfig() *Config {
 				Enabled: true,
 				BM25K1:  1.5,
 				BM25B:   0.75,
+			},
+			TFIDF: TFIDFConfig{
+				Enabled: true,
+			},
+			LSA: LSAConfig{
+				Enabled: true,
+				DimK:    64,
 			},
 			Hybrid: HybridConfig{
 				DefaultRRFK: 60.0,
@@ -156,6 +176,9 @@ func applyValidationAndFallbacks(cfg *Config) {
 	if cfg.Search.Lexical.BM25B <= 0 {
 		cfg.Search.Lexical.BM25B = 0.75
 	}
+	if cfg.Search.LSA.DimK <= 0 {
+		cfg.Search.LSA.DimK = 64
+	}
 	if cfg.Search.Hybrid.DefaultRRFK <= 0 {
 		cfg.Search.Hybrid.DefaultRRFK = 60.0
 	}
@@ -199,6 +222,11 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("GOGAGHE_SEARCH_SURFACE_NGRAM_SIZE"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			cfg.Search.Surface.NgramSize = n
+		}
+	}
+	if v := os.Getenv("GOGAGHE_SEARCH_LSA_DIM_K"); v != "" {
+		if k, err := strconv.Atoi(v); err == nil && k > 0 {
+			cfg.Search.LSA.DimK = k
 		}
 	}
 	if v := os.Getenv("GOGAGHE_SEARCH_HYBRID_DEFAULT_RRF_K"); v != "" {

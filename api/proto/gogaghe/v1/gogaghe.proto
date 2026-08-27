@@ -11,8 +11,11 @@ service GogagheService {
   rpc Delete(DeleteRequest) returns (DeleteResponse);
 
   // Single-strategy dedicated search RPCs:
-  rpc SurfaceSearch(SurfaceSearchRequest) returns (SurfaceSearchResponse); // Character N-gram (Trigram / Typo-tolerant)
-  rpc LexicalSearch(LexicalSearchRequest) returns (LexicalSearchResponse); // BM25 Inverted Index (Keyword / TF-IDF)
+  rpc SurfaceSearch(SurfaceSearchRequest) returns (SurfaceSearchResponse); // Character N-gram (Surface / Typo-tolerant)
+  rpc Bm25Search(Bm25SearchRequest)       returns (Bm25SearchResponse);    // BM25 Inverted Index (Probabilistic Lexical)
+  rpc LexicalSearch(LexicalSearchRequest) returns (LexicalSearchResponse); // Alias for Bm25Search
+  rpc TfidfSearch(TfidfSearchRequest)     returns (TfidfSearchResponse);   // Salton TF-IDF (Vector Space Model)
+  rpc LsaSearch(LsaSearchRequest)         returns (LsaSearchResponse);     // Latent Semantic Analysis (Truncated SVD)
   rpc VectorSearch(VectorSearchRequest)   returns (VectorSearchResponse);  // Dense Vector (Cosine Similarity)
 
   // Multi-strategy fused hybrid search RPC:
@@ -21,10 +24,12 @@ service GogagheService {
 
 // SearchStrategy specifies the matching strategy to use in search queries.
 enum SearchStrategy {
-  SEARCH_STRATEGY_UNSPECIFIED = 0; // Automatically enables all strategies matching provided query/vector fields
-  SEARCH_STRATEGY_SURFACE     = 1; // Character N-gram (Surface / Typo tolerance / SKU / Code)
-  SEARCH_STRATEGY_LEXICAL     = 2; // BM25 Inverted Index (Lexical / Exact keyword / IDF)
-  SEARCH_STRATEGY_SEMANTIC    = 3; // Dense Vector Cosine Similarity (Semantic meaning)
+  SEARCH_STRATEGY_UNSPECIFIED    = 0; // Automatically enables all strategies matching provided query/vector fields
+  SEARCH_STRATEGY_SURFACE_NGRAM  = 1; // Character N-gram (Surface / Typo tolerance / Substring)
+  SEARCH_STRATEGY_LEXICAL_BM25   = 2; // Okapi BM25 Inverted Index (Lexical probabilistic keyword)
+  SEARCH_STRATEGY_LEXICAL_TFIDF  = 3; // Salton TF-IDF (Lexical term frequency-inverse document frequency)
+  SEARCH_STRATEGY_SEMANTIC_LSA   = 4; // Latent Semantic Analysis (Truncated SVD statistical semantics)
+  SEARCH_STRATEGY_SEMANTIC_DENSE = 5; // Dense Vector Cosine Similarity (Deep neural embeddings)
 }
 
 // --- Set ---
@@ -72,13 +77,43 @@ message SurfaceSearchResponse {
   repeated SearchResult results = 1;
 }
 
-// --- LexicalSearch (BM25) ---
+// --- Bm25Search (Lexical BM25) ---
+message Bm25SearchRequest {
+  string query = 1;
+  int32  top_k = 2;
+}
+
+message Bm25SearchResponse {
+  repeated SearchResult results = 1;
+}
+
+// --- LexicalSearch (Alias for BM25) ---
 message LexicalSearchRequest {
   string query = 1;
   int32  top_k = 2;
 }
 
 message LexicalSearchResponse {
+  repeated SearchResult results = 1;
+}
+
+// --- TfidfSearch (Lexical TF-IDF) ---
+message TfidfSearchRequest {
+  string query = 1;
+  int32  top_k = 2;
+}
+
+message TfidfSearchResponse {
+  repeated SearchResult results = 1;
+}
+
+// --- LsaSearch (Latent Semantic SVD) ---
+message LsaSearchRequest {
+  string query = 1;
+  int32  top_k = 2;
+}
+
+message LsaSearchResponse {
   repeated SearchResult results = 1;
 }
 
@@ -95,8 +130,8 @@ message VectorSearchResponse {
 
 // --- HybridSearch (RRF Fusion) ---
 message HybridSearchRequest {
-  string                  query        = 1; // query text for surface/lexical
-  repeated float          query_vector = 2; // semantic query vector
+  string                  query        = 1; // query text for surface/lexical/lsa
+  repeated float          query_vector = 2; // dense semantic query vector
   int32                   top_k        = 3;
   float                   rrf_k        = 4; // RRF constant, default 60.0
   repeated SearchStrategy strategies   = 5; // Optional: specify exact strategies to fuse (if empty, auto-detects from provided fields)
