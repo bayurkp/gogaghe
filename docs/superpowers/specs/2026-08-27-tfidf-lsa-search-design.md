@@ -4,9 +4,9 @@
 Expand `gogaghe` search capabilities by integrating classic statistical Information Retrieval (IR) models without requiring external neural network sidecars or Cgo dependencies.
 
 The search strategies follow a **5-tier hierarchical paradigm** ordered by mathematical abstraction depth:
-1. `SEARCH_STRATEGY_SURFACE_TRIGRAM`: Character-level typo/substring tolerance.
-2. `SEARCH_STRATEGY_LEXICAL_BM25`: Word-level probabilistic relevance.
-3. `SEARCH_STRATEGY_LEXICAL_TFIDF`: Word-level vector space model (Salton).
+1. `SEARCH_STRATEGY_SURFACE_NGRAM`: Character $n$-gram surface match (configurable $n$, typo/substring tolerance).
+2. `SEARCH_STRATEGY_LEXICAL_BM25`: Word-level probabilistic relevance (Okapi BM25).
+3. `SEARCH_STRATEGY_LEXICAL_TFIDF`: Word-level vector space model (Salton TF-IDF).
 4. `SEARCH_STRATEGY_SEMANTIC_LSA`: Statistical concept-level latent semantics via Truncated SVD.
 5. `SEARCH_STRATEGY_SEMANTIC_DENSE`: Deep neural embeddings via dense float vectors.
 
@@ -17,18 +17,18 @@ The search strategies follow a **5-tier hierarchical paradigm** ordered by mathe
 ### Enum Definition
 ```protobuf
 enum SearchStrategy {
-  SEARCH_STRATEGY_UNSPECIFIED     = 0;
-  SEARCH_STRATEGY_SURFACE_TRIGRAM = 1;
-  SEARCH_STRATEGY_LEXICAL_BM25    = 2;
-  SEARCH_STRATEGY_LEXICAL_TFIDF   = 3;
-  SEARCH_STRATEGY_SEMANTIC_LSA    = 4;
-  SEARCH_STRATEGY_SEMANTIC_DENSE  = 5;
+  SEARCH_STRATEGY_UNSPECIFIED   = 0;
+  SEARCH_STRATEGY_SURFACE_NGRAM = 1;
+  SEARCH_STRATEGY_LEXICAL_BM25  = 2;
+  SEARCH_STRATEGY_LEXICAL_TFIDF = 3;
+  SEARCH_STRATEGY_SEMANTIC_LSA  = 4;
+  SEARCH_STRATEGY_SEMANTIC_DENSE = 5;
 }
 ```
 
 ### Dedicated RPCs
 - `SurfaceSearch(SurfaceSearchRequest) returns (SurfaceSearchResponse)`
-- `Bm25Search(Bm25SearchRequest) returns (Bm25SearchResponse)` (aliased/standardized from LexicalSearch)
+- `Bm25Search(Bm25SearchRequest) returns (Bm25SearchResponse)`
 - `TfidfSearch(TfidfSearchRequest) returns (TfidfSearchResponse)`
 - `LsaSearch(LsaSearchRequest) returns (LsaSearchResponse)`
 - `VectorSearch(VectorSearchRequest) returns (VectorSearchResponse)`
@@ -53,7 +53,7 @@ enum SearchStrategy {
 - **Pure-Go Truncated SVD**:
   - Factorizes the term-document TF-IDF matrix $A \approx U_k \Sigma_k V_k^T$.
   - Uses pure-Go Power Iteration / Lanczos orthogonalization (Zero Cgo, zero external dependencies).
-  - Truncated dimension $k$ configurable (default $k=64$).
+  - Truncated dimension $k$ configurable in `configs/config.yaml` (default $k=64$).
 - **Document Projection**:
   - Low-rank document vectors: $D_k = \Sigma_k V_k^T$ ($k \times N$ matrix).
 - **Query Projection & Search**:
